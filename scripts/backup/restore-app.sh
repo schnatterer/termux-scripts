@@ -2,39 +2,41 @@
 if [[ -n "${DEBUG}" ]]; then set -x; fi
 set -o errexit -o nounset -o pipefail
 
-srcFolder="$1"
+rootSrcFolder="$1"
 # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
-packageName=${srcFolder##*/}
+packageName=${rootSrcFolder##*/}
 RSYNC_EXTRA_ARG=${RSYNC_EXTRA_ARG:-''}
 
-function main() {
-  echo "Restoring app $packageName from $srcFolder"
+BASEDIR=$(dirname $0)
+ABSOLUTE_BASEDIR="$(cd $BASEDIR && pwd)"
+source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
 
-  echo "installing APK $srcFolder/base.apk"
-  sudo pm install "$srcFolder/base.apk"
+function main() {
+  echo "Restoring app $packageName from $rootSrcFolder"
+
+  echo "installing APK $rootSrcFolder/base.apk"
+  sudo pm install "$rootSrcFolder/base.apk"
 
   user=$(stat -c '%U' "/data/data/$packageName")
   group=$(stat -c '%G' "/data/data/$packageName")
 
-  echo "restoring data to /data/data/$packageName"
-  doRsync "$srcFolder/data/data/$packageName" /data/data/
-  echo "fixing owner/group $user:$group in /data/data/$packageName"
-  sudo chown -R "$user:$group" "/data/data/$packageName"
-  
-  if [[ -f "$srcFolder/sdcard/Android/data/$packageName" ]]; then
-    echo "restoring data to /sdcard/Android/data/$packageName"
-    doRsync "$srcFolder/sdcard/Android/$packageName" "/sdcard/Android/"
-    echo "fixing owner/group $user:$group in /sdcard/Android/data/$packageName"
-    sudo chown -R "$user:$group" "/sdcard/Android/data/$packageName"
-  fi
-  
-  termux-notification --id restoreApps --title  "Finished restoring  app" --content "$packageName from $srcFolder"
+  restore "/data/data/$packageName"
+
+  restore "/sdcard/Android/data/$packageName"
+
+  termux-notification --id restoreApps --title "Finished restoring  app" --content "$packageName from $rootSrcFolder"
 }
 
-function doRsync() {
-  src="$1"
-  dst="$2"
-  sudo rsync --human-readable --archive --stats  ${RSYNC_EXTRA_ARG} "$src" "$dst"
+function restore() {
+  destFolder="$1"
+  actualSrcFolder="${rootSrcFolder}/${destFolder}"
+
+  if [[ -f "${actualSrcFolder}" ]]; then
+    echo "restoring data to ${destFolder}"
+    doRsync "${actualSrcFolder}" "${destFolder}"
+    echo "fixing owner/group ${user}:${group} in ${destFolder}"
+    sudo chown -R "${user}:${group}" "${destFolder}"
+  fi
 }
 
 main "$@"

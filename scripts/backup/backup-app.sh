@@ -3,34 +3,38 @@ if [[ -n "${DEBUG}" ]]; then set -x; fi
 set -o errexit -o nounset -o pipefail
 
 packageName="$1"
-destFolder="$2/$1"
+baseDestFolder="$2/$1"
 RSYNC_EXTRA_ARG=${RSYNC_EXTRA_ARG:-''}
 
+BASEDIR=$(dirname $0)     
+ABSOLUTE_BASEDIR="$( cd $BASEDIR && pwd )"      
+source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
+
 function main() {
-  echo "Backing up app $packageName to $destFolder"
+  echo "Backing up app $packageName to $baseDestFolder"
 
-  mkdir  -p "$destFolder/data/data/$packageName"
-  doRsync "/data/data/$packageName" "$destFolder/data/data/"
+  backup "/data/data/$packageName"
 
-  if [[ -f "/sdcard/Android/data/$packageName" ]]; then
-    mkdir  -p "$destFolder/sdcard/Android/data/$packageName"
-    doRsync "/sdcard/Android/data/$packageName" "$destFolder/sdcard/Android/data/"
-  fi
+  backup "/sdcard/Android/data/$packageName"
 
   # TODO split APKs return multiple APKs.
   # Realize backup and restore for them
-  # How to restore? Reinstalling base.apk alone leads to app crashing with 
-  # AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to invoke interface method &apos;boolean com.google.android.play.core.missingsplits.a.a()&apos; on a null object reference 
+  # How to restore? Reinstalling base.apk alone leads to app crashing with
+  # AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to invoke interface method &apos;boolean com.google.android.play.core.missingsplits.a.a()&apos; on a null object reference
   apkPath=$(sudo pm path "$packageName" | head -n1 | sed 's/package://')
-  doRsync "$apkPath" "$destFolder/"
+  doRsync "$apkPath" "$baseDestFolder/"
 
-  termux-notification --id backupApps --title  "Finished backing up app" --content "$packageName to $destFolder"
+  termux-notification --id backupApps --title "Finished backing up app" --content "$packageName to $baseDestFolder"
 }
 
-function doRsync() {
-  src="$1"
-  dst="$2"
-  sudo rsync --human-readable --archive --stats ${RSYNC_EXTRA_ARG} "$src" "$dst"
+function backup() {
+  srcFolder="$1"
+  actualDestFolder="${baseDestFolder}/${srcFolder}"
+  if [[ -f "${srcFolder}" ]]; then
+    echo "Sycing ${srcFolder} to ${actualDestFolder}"
+    mkdir -p "${actualDestFolder}"
+    doRsync "${srcFolder}" "${actualDestFolder}"
+  fi
 }
 
 main "$@"
