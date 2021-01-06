@@ -19,7 +19,8 @@ function doRsync() {
   
   sudo rsync \
     --human-readable --archive --stats \
-    $([[ ${#remoteShellArgs[@]} -ne 0 ]] && echo --rsh=\"${remoteShellArgs[*]}\") "${src}" "${dst}"
+    "--rsh=${remoteShellArgs[*]}" \
+    "${src}" "${dst}"
 }
 
 # Example:
