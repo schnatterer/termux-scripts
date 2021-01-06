@@ -30,10 +30,9 @@ function main() {
 function backup() {
   srcFolder="$1"
   actualDestFolder="${baseDestFolder}/${srcFolder}"
-  if [[ -f "${srcFolder}" ]]; then
+  if [[ -d "${srcFolder}" ]]; then
     echo "Sycing ${srcFolder} to ${actualDestFolder}"
-    mkdir -p "${actualDestFolder}"
-    doRsync "${srcFolder}" "${actualDestFolder}"
+    doRsync "${srcFolder}/" "${actualDestFolder}"
   fi
 }
 

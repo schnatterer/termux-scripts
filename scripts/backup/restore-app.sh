@@ -31,9 +31,9 @@ function restore() {
   destFolder="$1"
   actualSrcFolder="${rootSrcFolder}/${destFolder}"
 
-  if [[ -f "${actualSrcFolder}" ]]; then
+  if [[ -d "${actualSrcFolder}" ]]; then
     echo "restoring data to ${destFolder}"
-    doRsync "${actualSrcFolder}" "${destFolder}"
+    doRsync "${actualSrcFolder}/" "${destFolder}"
     echo "fixing owner/group ${user}:${group} in ${destFolder}"
     sudo chown -R "${user}:${group}" "${destFolder}"
   fi
