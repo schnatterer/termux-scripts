@@ -4,27 +4,22 @@ function doRsync() {
   remoteShellArgs=''
   
   if [[ "${src}" == *:* ]] || [[ "${dst}" == *:* ]]; then
-    remoteShellArgs='ssh'
+    remoteShellArgs=('ssh')
     set +o nounset
-    [[ -n "$SSH_PORT" ]] && remoteShellArgs="${remoteShellArgs} -p $SSH_PORT"
-    [[ -n "$SSH_PK" ]] && remoteShellArgs="${remoteShellArgs} -i $SSH_PK"
-    [[ -n "$SSH_HOST_FILE" ]] && remoteShellArgs="${remoteShellArgs} -o UserKnownHostsFile=$SSH_HOST_FILE"
+    [[ -n "$SSH_PORT" ]] && remoteShellArgs+=("-p $SSH_PORT") 
+    [[ -n "$SSH_PK" ]] && remoteShellArgs+=("-i $SSH_PK") 
+    [[ -n "$SSH_HOST_FILE" ]] && remoteShellArgs+=("-o UserKnownHostsFile=$SSH_HOST_FILE")
     set -o nounset
     
-   #remoteShellArgs=(
-    #'ssh'
-    #)
-    #rsync $([[ ${#remoteShellArgs[@]} -ne 0 ]] && echo -p "${K3S_ARGS[*]}") 
-  
     # ssh user@host 'mkdir -p /a/b/c'
-    eval "${remoteShellArgs} $(removeDirFromSshExpression "${dst}") 'mkdir -p $(removeUserAndHostNameFromSshExpression "${dst}")'"
+    eval "${remoteShellArgs[*]} $(removeDirFromSshExpression "${dst}") 'mkdir -p $(removeUserAndHostNameFromSshExpression "${dst}")'"
   else
     mkdir -p "${dst}"
   fi
   
   sudo rsync \
     --human-readable --archive --stats \
-    $( [[ -n "$remoteShellArgs" ]] && echo "-e '$remoteShellArgs' ") "${src}" "${dst}"
+    $([[ ${#remoteShellArgs[@]} -ne 0 ]] && echo --rsh=\"${remoteShellArgs[*]}\") "${src}" "${dst}"
 }
 
 # Example:
