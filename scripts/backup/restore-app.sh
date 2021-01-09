@@ -15,7 +15,7 @@ function main() {
   echo "Restoring app $packageName from $rootSrcFolder"
 
   echo "installing APK $rootSrcFolder/base.apk"
-  sudo pm install "$rootSrcFolder/base.apk"
+  installMultiple "$rootSrcFolder/"
 
   user=$(stat -c '%U' "/data/data/$packageName")
   group=$(stat -c '%G' "/data/data/$packageName")

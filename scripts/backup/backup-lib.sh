@@ -55,3 +55,34 @@ function removeUserAndHostNameFromSshExpression() {
   # "Occasionally a more complex sed substitution is required."
   sed 's/.*:\(.*\)/\1/' <<<"$1"
 }
+
+function installMultiple() {
+  # Note:
+  # * A newer alternative to "pm" seems to be "pm"
+  # * It prints a help dialog by just calling "pm" (--help does not work)
+  apkFolder="$1"
+  (
+    cd "${apkFolder}"
+    totalApkSize=0
+    for apk in *.apk; do
+      size=$(wc -c "${apk}" | awk '{print $1}')
+      totalApkSize=$((totalApkSize + size))
+    done
+
+    echo "Creating install session for total APK size ${totalApkSize}"
+    installCreateOutput=$(sudo pm install-create -S ${totalApkSize})
+    sessionId=$(echo "${installCreateOutput}" | grep -E -o '[0-9]+')
+
+    echo "Installing apks in session $sessionId"
+    for apk in *.apk; do
+      size=$(wc -c "${apk}" | awk '{print $1}')
+      echo "Writing ${apk} (size ${size}) to session ${sessionId}"
+      # install-write [-S BYTES] SESSION_ID SPLIT_NAME [PATH|-]
+      #  Write an apk into the given install session.  If the path is '-', data will be read from stdin
+      sudo pm install-write -S "${size}" "${sessionId}" "${apk}" "${apk}"
+    done
+
+    echo "Committing session ${sessionId}"
+    sudo pm install-commit "${sessionId}"
+  )
+}
