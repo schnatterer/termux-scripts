@@ -1,11 +1,11 @@
 function doRsync() {
   src="$1"
   dst="$2"
-  additionalArgs=( "$@" )
+  additionalArgs=("$@")
   # Treat all args after src and dst as addition rsync args
   additionalArgs=${additionalArgs[@]:2}
   remoteShellArgs=''
-  
+
   if [[ "${src}" == *:* ]] || [[ "${dst}" == *:* ]]; then
     remoteShellArgs=('ssh')
     set +o nounset
@@ -20,10 +20,20 @@ function doRsync() {
     mkdir -p "${dst}"
   fi
 
-  sudo rsync \
+  sudo time rsync \
     --human-readable --archive --stats \
-    "--rsh=${remoteShellArgs[*]}"  ${additionalArgs} \
+    "--rsh=${remoteShellArgs[*]}" \
+    $(rsyncShowOptionalProgress) \
+    ${additionalArgs} \
     "${src}" "${dst}"
+}
+
+function rsyncShowOptionalProgress() {
+  # Run Jenkins and Agent pods as the current user.
+  # Avoids file permission problems when accessing files on the host that were written from the pods
+  set +o nounset
+  [[ "${RSYNC_PROGRESS}" == "true" ]] && echo "--progress"
+  set -o nounset
 }
 
 # Example:

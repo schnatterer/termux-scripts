@@ -6,8 +6,8 @@ packageName="$1"
 baseDestFolder="$2/$1"
 RSYNC_EXTRA_ARG=${RSYNC_EXTRA_ARG:-''}
 
-BASEDIR=$(dirname $0)     
-ABSOLUTE_BASEDIR="$( cd $BASEDIR && pwd )"      
+BASEDIR=$(dirname $0)
+ABSOLUTE_BASEDIR="$( cd $BASEDIR && pwd )"
 source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
 
 function main() {
