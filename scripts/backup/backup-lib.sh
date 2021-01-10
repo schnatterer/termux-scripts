@@ -1,3 +1,28 @@
+function backupApp() {
+  packageName="$1"
+  baseDestFolder="$2/$1"
+
+  echo "Backing up app $packageName to $baseDestFolder"
+
+  backupFolder "/data/data/$packageName"
+
+  backupFolder "/sdcard/Android/data/$packageName"
+
+  # Backup all APKs from path (can be multiple for split-apks!)
+  apkPath=$(dirname "$(sudo pm path "$packageName" | head -n1 | sed 's/package://')")
+  # Only sync APKs, libs, etc are extracted during install
+  doRsync "$apkPath/" "$baseDestFolder/" -m --include='*/' --include='*.apk' --exclude='*'
+}
+
+function backupFolder() {
+  srcFolder="$1"
+  actualDestFolder="${baseDestFolder}/${srcFolder}"
+  if [[ -d "${srcFolder}" ]]; then
+    echo "Sycing ${srcFolder} to ${actualDestFolder}"
+    doRsync "${srcFolder}/" "${actualDestFolder}"
+  fi
+}
+
 function doRsync() {
   src="$1"
   dst="$2"

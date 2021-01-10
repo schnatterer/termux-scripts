@@ -5,7 +5,6 @@ set -o errexit -o nounset -o pipefail
 rootSrcFolder="$1"
 # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
 packageName=${rootSrcFolder##*/}
-RSYNC_EXTRA_ARG=${RSYNC_EXTRA_ARG:-''}
 
 BASEDIR=$(dirname $0)
 ABSOLUTE_BASEDIR="$(cd $BASEDIR && pwd)"
