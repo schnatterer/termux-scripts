@@ -1,6 +1,6 @@
 function backupApp() {
-  packageName="$1"
-  baseDestFolder="$2/$1"
+  local packageName="$1"
+  local baseDestFolder="$2/$1"
 
   echo "Backing up app $packageName to $baseDestFolder"
 

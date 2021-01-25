@@ -19,18 +19,23 @@ set -o errexit -o nounset -o pipefail
 SCRIPT_NAME=$(basename "$0")
 
 function main() {
-  trap '[[ $? > 0 ]] && termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "See log" --action "xdg-open ${LOG_FILE}"' EXIT
+  trap '[[ $? > 0 ]] && termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "Tap to see log" --action "xdg-open ${LOG_FILE}"' EXIT
 
-  packageNames=$(sudo pm list packages -3)
+  # subshell turns line break to space -> array
+  # array allows for using for loop
+  # for loop does not rely on stdin
+  # other than "while read -r"
+  # leading to end of loop after first iteration
+  packageNames=($(sudo pm list packages -3))
   nUserApps=$(echo "${packageNames}" | wc -l)
   echo "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}"
-
-  while IFS= read -r rawPackageName; do
+echo "${packageNames[@]}"
+  for rawPackageName in "${packageNames[@]}"; do
+  #echo "$packageNames" | while IFS= read -r rawPackageName ; do
     packageName="${rawPackageName/package:/}"
-    backupApp "${packageName}" "${baseDestFolder}"
-  done <<< "${packageNames}"
-  # TODO why is this ending after the first app?!
-
+    backupApp "${packageName}" "${baseDestFolder}" 
+  done
+# TODO count and print here!
   termux-notification --id backupAllUserApps --title "Finished backing up apps" --content "All ${nUserApps} user apps" --action "xdg-open ${LOG_FILE}"
 }
 
