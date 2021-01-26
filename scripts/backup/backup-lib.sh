@@ -30,6 +30,7 @@ function doRsync() {
   # Treat all args after src and dst as addition rsync args
   additionalArgs=${additionalArgs[@]:2}
   remoteShellArgs=''
+  RSYNC_ARGS=${RSYNC_ARGS:-''}
 
   if [[ "${src}" == *:* ]] || [[ "${dst}" == *:* ]]; then
     remoteShellArgs=('ssh')
@@ -46,18 +47,16 @@ function doRsync() {
   fi
 
   sudo time rsync \
-    --human-readable --archive --stats \
+    --human-readable --archive \
     "--rsh=${remoteShellArgs[*]}" \
-    $(rsyncShowOptionalProgress) \
+    $(rsyncExternalArgs) \
     ${additionalArgs} \
     "${src}" "${dst}"
 }
 
-function rsyncShowOptionalProgress() {
-  # Run Jenkins and Agent pods as the current user.
-  # Avoids file permission problems when accessing files on the host that were written from the pods
+function rsyncExternalArgs() {
   set +o nounset
-  [[ "${RSYNC_PROGRESS}" == "true" ]] && echo "--progress"
+  echo "${RSYNC_ARGS}"
   set -o nounset
 }
 
@@ -110,4 +109,24 @@ function installMultiple() {
     echo "Committing session ${sessionId}"
     sudo pm install-commit "${sessionId}"
   )
+}
+
+function log() {
+  echo "$(date '+%Y-%m-%d %H:%M:%S') $*"
+}
+
+function enableLogging() {
+  # Almost no android app seems to register for opening ".log" files. So use a more common ending.
+  LOG_FILE=${LOG_FILE:-"$(mktemp --suffix=.txt)"}
+  log "Writing output to logfile: ${LOG_FILE}"
+  exec > >(tee -a ${LOG_FILE})
+  exec 2> >(tee -a ${LOG_FILE} >&2)
+}
+
+function init() {
+    if [[ -n "${DEBUG}" ]]; then set -x; fi
+
+    enableLogging
+
+    set -o errexit -o nounset -o pipefail
 }
