@@ -126,6 +126,10 @@ function enableLogging() {
   exec 2> >(tee -a ${LOG_FILE} >&2)
 }
 
+printSeconds() {
+    echo "$(( SECONDS / 3600 ))h $(( (SECONDS / 60) % 60 ))m $(( SECONDS % 60 ))s"
+}
+
 function init() {
     if [[ -n "${DEBUG}" ]]; then set -x; fi
     SECONDS=0 # Variable SECONDS will track execution time of the command
@@ -133,5 +137,4 @@ function init() {
     enableLogging
 
     set -o errexit -o nounset -o pipefail
-
 }
