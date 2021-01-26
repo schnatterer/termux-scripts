@@ -17,9 +17,12 @@ function backupApp() {
 function backupFolder() {
   srcFolder="$1"
   actualDestFolder="${baseDestFolder}/${srcFolder}"
+  additionalArgs=("$@")
+  # Treat all args after src and dst as addition rsync args
+  additionalArgs=${additionalArgs[@]:1}
   if [[ -d "${srcFolder}" ]]; then
     echo "Sycing ${srcFolder} to ${actualDestFolder}"
-    doRsync "${srcFolder}/" "${actualDestFolder}"
+    doRsync "${srcFolder}/" "${actualDestFolder}" --exclude='cache' ${additionalArgs}
   fi
 }
 
@@ -46,12 +49,18 @@ function doRsync() {
     mkdir -p "${dst}"
   fi
 
-  sudo time rsync \
+  eval sudo $(rsyncTime) rsync \
     --human-readable --archive \
     "--rsh=${remoteShellArgs[*]}" \
     $(rsyncExternalArgs) \
     ${additionalArgs} \
     "${src}" "${dst}"
+}
+
+function rsyncTime() {
+  set +o nounset
+  [[ -n "${RSYNC_ARGS}" ]] && echo 'time'
+  set -o nounset
 }
 
 function rsyncExternalArgs() {
@@ -125,8 +134,10 @@ function enableLogging() {
 
 function init() {
     if [[ -n "${DEBUG}" ]]; then set -x; fi
+    SECONDS=0 # Variable SECONDS will track execution time of the command
 
     enableLogging
 
     set -o errexit -o nounset -o pipefail
+
 }

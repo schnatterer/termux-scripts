@@ -13,14 +13,14 @@ init
 function main() {
   nAppsBackedUp=0
 
-  trap '[[ $? > 0 ]] && termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "After $nAppsBackedUp / $nUserApps apps.\n Tap to see log" --action "xdg-open ${LOG_FILE}"' EXIT
+  trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "After $nAppsBackedUp / $nUserApps apps.\n Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
 
   # subshell turns line break to space -> array
   # array allows for using for loop, which does not rely on stdin
   # (other than "while read -r", which leads to end of loop after first iteration)
   packageNames=( $(sudo pm list packages -3) )
 
-  nUserApps=$(echo "${packageNames}" | wc -l)
+  nUserApps=$(sudo pm list packages -3 | wc -l)
   log "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}"
 
   for rawPackageName in "${packageNames[@]}"; do
