@@ -49,18 +49,12 @@ function doRsync() {
     mkdir -p "${dst}"
   fi
 
-  eval sudo $(rsyncTime) rsync \
+  sudo rsync \
     --human-readable --archive \
     "--rsh=${remoteShellArgs[*]}" \
     $(rsyncExternalArgs) \
     ${additionalArgs} \
     "${src}" "${dst}"
-}
-
-function rsyncTime() {
-  set +o nounset
-  [[ -n "${RSYNC_ARGS}" ]] && echo 'time'
-  set -o nounset
 }
 
 function rsyncExternalArgs() {
