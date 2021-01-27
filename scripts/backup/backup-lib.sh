@@ -30,7 +30,7 @@ function restoreApp() {
   local rootSrcFolder="$1"
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
   local packageName=${rootSrcFolder##*/}
-  
+
   log "Restoring app $packageName from $rootSrcFolder"
 
   installMultiple "$rootSrcFolder/"
@@ -64,16 +64,9 @@ function doRsync() {
   remoteShellArgs=''
   RSYNC_ARGS=${RSYNC_ARGS:-''}
 
-  if [[ "${src}" == *:* ]] || [[ "${dst}" == *:* ]]; then
-    remoteShellArgs=('ssh')
-    set +o nounset
-    [[ -n "$SSH_PORT" ]] && remoteShellArgs+=("-p $SSH_PORT")
-    [[ -n "$SSH_PK" ]] && remoteShellArgs+=("-i $SSH_PK")
-    [[ -n "$SSH_HOST_FILE" ]] && remoteShellArgs+=("-o UserKnownHostsFile=$SSH_HOST_FILE")
-    set -o nounset
-
-    # ssh user@host 'mkdir -p /a/b/c'
-    eval "${remoteShellArgs[*]} $(removeDirFromSshExpression "${dst}") 'mkdir -p $(removeUserAndHostNameFromSshExpression "${dst}")'"
+  if [[ "${dst}" == *:* ]]; then
+    # e.g. execViaSsh user@host 'mkdir -p /a/b/c'
+    sshFromEnv "$(removeDirFromSshExpression "${dst}")" "mkdir -p $(removeUserAndHostNameFromSshExpression "${dst}")"
   else
     mkdir -p "${dst}"
   fi
@@ -84,6 +77,20 @@ function doRsync() {
     $(rsyncExternalArgs) \
     ${additionalArgs} \
     "${src}" "${dst}"
+}
+
+function sshFromEnv() {
+  userAtHost="$1"
+  sshCommand="$2"
+
+  remoteShellArgs=('ssh')
+  set +o nounset
+  [[ -n "$SSH_PORT" ]] && remoteShellArgs+=("-p $SSH_PORT")
+  [[ -n "$SSH_PK" ]] && remoteShellArgs+=("-i $SSH_PK")
+  [[ -n "$SSH_HOST_FILE" ]] && remoteShellArgs+=("-o UserKnownHostsFile=$SSH_HOST_FILE")
+  set -o nounset
+
+  eval "${remoteShellArgs[*]} ${userAtHost} '${sshCommand}'"
 }
 
 function rsyncExternalArgs() {
@@ -155,15 +162,15 @@ function enableLogging() {
   exec 2> >(tee -a ${LOG_FILE} >&2)
 }
 
-printSeconds() {
-    echo "$(( SECONDS / 3600 ))h $(( (SECONDS / 60) % 60 ))m $(( SECONDS % 60 ))s"
+function printSeconds() {
+  echo "$((SECONDS / 3600))h $(((SECONDS / 60) % 60))m $((SECONDS % 60))s"
 }
 
 function init() {
-    if [[ -n "${DEBUG}" ]]; then set -x; fi
-    SECONDS=0 # Variable SECONDS will track execution time of the command
+  if [[ -n "${DEBUG}" ]]; then set -x; fi
+  SECONDS=0 # Variable SECONDS will track execution time of the command
 
-    enableLogging
+  enableLogging
 
-    set -o errexit -o nounset -o pipefail
+  set -o errexit -o nounset -o pipefail
 }

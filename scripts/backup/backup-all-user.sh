@@ -20,13 +20,13 @@ function main() {
   # (other than "while read -r", which leads to end of loop after first iteration)
   packageNames=( $(sudo pm list packages -3) )
 
-  nUserApps=$(sudo pm list packages -3 | wc -l)
+  nUserApps=${#packageNames[@]}
   log "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}"
 
   for rawPackageName in "${packageNames[@]}"; do
-    nAppsBackedUp=$(( ${nAppsBackedUp} + 1 ))
     packageName="${rawPackageName/package:/}"
     backupApp "${packageName}" "${baseDestFolder}" 
+    nAppsBackedUp=$(( nAppsBackedUp + 1 ))
   done
 
   log "Finished backing up apps"
