@@ -125,6 +125,13 @@ function installMultiple() {
   # * A newer alternative to "pm" seems to be "pm"
   # * It prints a help dialog by just calling "pm" (--help does not work)
   apkFolder="$1"
+
+  if [[ "${apkFolder}" == *:* ]]; then
+    apkTmp=$(mktemp -d)
+    doRsync "$apkFolder/" "$apkTmp/" -m --include='*/' --include='*.apk' --exclude='*'
+    apkFolder=apkTmp
+  fi
+
   (
     cd "${apkFolder}"
     totalApkSize=0
