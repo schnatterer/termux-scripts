@@ -2,7 +2,7 @@ function backupApp() {
   local packageName="$1"
   local baseDestFolder="$2/$1"
 
-  echo "Backing up app $packageName to $baseDestFolder"
+  log "Backing up app $packageName to $baseDestFolder"
 
   backupFolder "/data/data/$packageName"
 
@@ -23,6 +23,35 @@ function backupFolder() {
   if [[ -d "${srcFolder}" ]]; then
     echo "Sycing ${srcFolder} to ${actualDestFolder}"
     doRsync "${srcFolder}/" "${actualDestFolder}" --exclude='cache' ${additionalArgs}
+  fi
+}
+
+function restoreApp() {
+  local rootSrcFolder="$1"
+  # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
+  local packageName=${rootSrcFolder##*/}
+  
+  log "Restoring app $packageName from $rootSrcFolder"
+
+  installMultiple "$rootSrcFolder/"
+
+  user=$(stat -c '%U' "/data/data/$packageName")
+  group=$(stat -c '%G' "/data/data/$packageName")
+
+  restore "/data/data/$packageName"
+
+  restore "/sdcard/Android/data/$packageName"
+}
+
+function restoreFolder() {
+  destFolder="$1"
+  actualSrcFolder="${rootSrcFolder}/${destFolder}"
+
+  if [[ -d "${actualSrcFolder}" ]]; then
+    log "Restoring data to ${destFolder}"
+    doRsync "${actualSrcFolder}/" "${destFolder}"
+    log "Fixing owner/group ${user}:${group} in ${destFolder}"
+    sudo chown -R "${user}:${group}" "${destFolder}"
   fi
 }
 
