@@ -17,7 +17,7 @@ function main() {
 
   if [[ "${rootSrcFolder}" == *:* ]]; then
     # e.g. ssh user@host ls /a/b/c
-    packageNames=$(sshFromEnv "$(removeDirFromSshExpression "${rootSrcFolder}")" "ls ${rootSrcFolder}")
+    packageNames=$(ssh "$(removeDirFromSshExpression "${rootSrcFolder}")" "ls ${rootSrcFolder}")
   else
     packageNames=$(ls "${rootSrcFolder}")
   fi

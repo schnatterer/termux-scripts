@@ -38,14 +38,15 @@ function restoreApp() {
   user=$(stat -c '%U' "/data/data/$packageName")
   group=$(stat -c '%G' "/data/data/$packageName")
 
-  restore "/data/data/$packageName"
+  restoreFolder "${rootSrcFolder}" "/data/data/${packageName}"
 
-  restore "/sdcard/Android/data/$packageName"
+  restoreFolder "${rootSrcFolder}" "/sdcard/Android/data/${packageName}"
 }
 
 function restoreFolder() {
-  destFolder="$1"
-  actualSrcFolder="${rootSrcFolder}/${destFolder}"
+  local rootSrcFolder="$1"
+  local destFolder="$2"
+  local actualSrcFolder="${rootSrcFolder}/${destFolder}"
 
   if [[ -d "${actualSrcFolder}" ]]; then
     log "Restoring data to ${destFolder}"
