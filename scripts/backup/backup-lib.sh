@@ -48,6 +48,9 @@ function restoreFolder() {
   local destFolder="$2"
   local actualSrcFolder="${rootSrcFolder}/${destFolder}"
 
+  # todo what about remote folders here?
+#if [[ "${actualSrcFolder}" == *:* ]]; then
+#	if [[ $( sshFromEnv "$(removeDirFromSshExpression "${actualSrcFolder}"}")" "[ -d $(removeUserAndHostNameFromSshExpression "${actualSrcFolder}"}")]") ]]
   if [[ -d "${actualSrcFolder}" ]]; then
     log "Restoring data to ${destFolder}"
     doRsync "${actualSrcFolder}/" "${destFolder}"
@@ -72,6 +75,10 @@ function doRsync() {
     mkdir -p "${dst}"
   fi
 
+  if [[ "${src}" == *:* ]] || [[ "${dst}" == *:* ]]; then
+    setRemoteShellArgs
+  fi
+
   sudo rsync \
     --human-readable --archive \
     "--rsh=${remoteShellArgs[*]}" \
@@ -84,14 +91,19 @@ function sshFromEnv() {
   userAtHost="$1"
   sshCommand="$2"
 
+  setRemoteShellArgs
+
+  eval "${remoteShellArgs[*]} ${userAtHost} '${sshCommand}'"
+}
+
+setRemoteShellArgs() {
   remoteShellArgs=('ssh')
+
   set +o nounset
   [[ -n "$SSH_PORT" ]] && remoteShellArgs+=("-p $SSH_PORT")
   [[ -n "$SSH_PK" ]] && remoteShellArgs+=("-i $SSH_PK")
   [[ -n "$SSH_HOST_FILE" ]] && remoteShellArgs+=("-o UserKnownHostsFile=$SSH_HOST_FILE")
   set -o nounset
-
-  eval "${remoteShellArgs[*]} ${userAtHost} '${sshCommand}'"
 }
 
 function rsyncExternalArgs() {
@@ -129,7 +141,7 @@ function installMultiple() {
   if [[ "${apkFolder}" == *:* ]]; then
     apkTmp=$(mktemp -d)
     doRsync "$apkFolder/" "$apkTmp/" -m --include='*/' --include='*.apk' --exclude='*'
-    apkFolder=apkTmp
+    apkFolder=$apkTmp
   fi
 
   (
