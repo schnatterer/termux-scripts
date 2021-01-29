@@ -17,7 +17,8 @@ function main() {
 
   if [[ "${rootSrcFolder}" == *:* ]]; then
     # e.g. ssh user@host ls /a/b/c
-    packageNames=$(ssh "$(removeDirFromSshExpression "${rootSrcFolder}")" "ls ${rootSrcFolder}")
+    # subshell turns line break to space -> array
+    packageNames=( $(sshFromEnv "$(removeDirFromSshExpression "${rootSrcFolder}")" "ls $(removeUserAndHostNameFromSshExpression "${rootSrcFolder}")" ) )
   else
     packageNames=$(ls "${rootSrcFolder}")
   fi
