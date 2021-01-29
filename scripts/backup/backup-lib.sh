@@ -48,10 +48,20 @@ function restoreFolder() {
   local destFolder="$2"
   local actualSrcFolder="${rootSrcFolder}/${destFolder}"
 
-  # todo what about remote folders here?
-#if [[ "${actualSrcFolder}" == *:* ]]; then
-#	if [[ $( sshFromEnv "$(removeDirFromSshExpression "${actualSrcFolder}"}")" "[ -d $(removeUserAndHostNameFromSshExpression "${actualSrcFolder}"}")]") ]]
-  if [[ -d "${actualSrcFolder}" ]]; then
+  actualSourceFolderExists=false
+  if [[ "${actualSrcFolder}" == *:* ]]; then
+      # ssh '[ -d /a/b/c ]'
+      local sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
+      local localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
+      
+	    if sshFromEnv "${sshCommand}" "[ -d ${localFolder} ]"; then
+	      actualSourceFolderExists=true
+      fi
+	else
+	  [[ -d "${actualSrcFolder}" ]] && actualSourceFolderExists=true
+  fi
+  
+  if [[ "${actualSourceFolderExists}" != 'false' ]]; then
     log "Restoring data to ${destFolder}"
     doRsync "${actualSrcFolder}/" "${destFolder}"
     log "Fixing owner/group ${user}:${group} in ${destFolder}"
@@ -136,7 +146,7 @@ function installMultiple() {
   # Note:
   # * A newer alternative to "pm" seems to be "pm"
   # * It prints a help dialog by just calling "pm" (--help does not work)
-  apkFolder="$1"
+  local apkFolder="$1"
 
   if [[ "${apkFolder}" == *:* ]]; then
     apkTmp=$(mktemp -d)
