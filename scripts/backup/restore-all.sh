@@ -27,8 +27,12 @@ function main() {
   log "Restoring all ${nApps} apps from folder ${rootSrcFolder}"
 
   for packageName in "${packageNames[@]}"; do
-    srcFolder="${rootSrcFolder}/${packageName}"
-    restoreApp "${srcFolder}"
+    if [[ "${packageName}" != 'com.termux' ]]; then 
+      srcFolder="${rootSrcFolder}/${packageName}"
+      restoreApp "${srcFolder}"
+    else
+      echo "WARNING: Skipping restore of termux app, as this would break this restore all loop."
+    fi
     nAppsRestored=$(( nAppsRestored + 1))
   done
 
