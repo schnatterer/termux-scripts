@@ -20,7 +20,7 @@ function main() {
     # subshell turns line break to space -> array
     packageNames=( $(sshFromEnv "$(removeDirFromSshExpression "${rootSrcFolder}")" "ls $(removeUserAndHostNameFromSshExpression "${rootSrcFolder}")" ) )
   else
-    packageNames=$(ls "${rootSrcFolder}")
+    packageNames=( $(ls "${rootSrcFolder}") )
   fi
 
   nApps=${#packageNames[@]}
