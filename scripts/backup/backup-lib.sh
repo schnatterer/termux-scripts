@@ -4,14 +4,18 @@ function backupApp() {
 
   log "Backing up app $packageName to $baseDestFolder"
 
-  backupFolder "/data/data/$packageName"
+  if [[ "${APK}" != 'true' ]]; then
+    backupFolder "/data/data/$packageName"
 
-  backupFolder "/sdcard/Android/data/$packageName"
+    backupFolder "/sdcard/Android/data/$packageName"
+  fi
 
-  # Backup all APKs from path (can be multiple for split-apks!)
-  apkPath=$(dirname "$(sudo pm path "$packageName" | head -n1 | sed 's/package://')")
-  # Only sync APKs, libs, etc are extracted during install
-  doRsync "$apkPath/" "$baseDestFolder/" -m --include='*/' --include='*.apk' --exclude='*'
+  if [[ "${DATA}" != 'true' ]]; then
+    # Backup all APKs from path (can be multiple for split-apks!)
+    apkPath=$(dirname "$(sudo pm path "$packageName" | head -n1 | sed 's/package://')")
+    # Only sync APKs, libs, etc are extracted during install
+    doRsync "$apkPath/" "$baseDestFolder/" -m --include='*/' --include='*.apk' --exclude='*'
+  fi
 }
 
 function backupFolder() {
@@ -33,14 +37,18 @@ function restoreApp() {
 
   log "Restoring app $packageName from $rootSrcFolder"
 
-  installMultiple "$rootSrcFolder/"
+  if [[ "${DATA}" != 'true' ]]; then
+    installMultiple "$rootSrcFolder/"
+  fi
 
-  user=$(stat -c '%U' "/data/data/$packageName")
-  group=$(stat -c '%G' "/data/data/$packageName")
-
-  restoreFolder "${rootSrcFolder}" "/data/data/${packageName}"
-
-  restoreFolder "${rootSrcFolder}" "/sdcard/Android/data/${packageName}"
+  if [[ "${APK}" != 'true' ]]; then
+    user=$(stat -c '%U' "/data/data/$packageName")
+    group=$(stat -c '%G' "/data/data/$packageName")
+  
+    restoreFolder "${rootSrcFolder}" "/data/data/${packageName}"
+  
+    restoreFolder "${rootSrcFolder}" "/sdcard/Android/data/${packageName}"
+  fi
 }
 
 function restoreFolder() {
@@ -50,17 +58,17 @@ function restoreFolder() {
 
   actualSourceFolderExists=false
   if [[ "${actualSrcFolder}" == *:* ]]; then
-      # ssh '[ -d /a/b/c ]'
-      local sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
-      local localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
-      
-	    if sshFromEnv "${sshCommand}" "[ -d ${localFolder} ]"; then
-	      actualSourceFolderExists=true
-      fi
-	else
-	  [[ -d "${actualSrcFolder}" ]] && actualSourceFolderExists=true
+    # ssh '[ -d /a/b/c ]'
+    local sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
+    local localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
+
+    if sshFromEnv "${sshCommand}" "[ -d ${localFolder} ]"; then
+      actualSourceFolderExists=true
+    fi
+  else
+    [[ -d "${actualSrcFolder}" ]] && actualSourceFolderExists=true
   fi
-  
+
   if [[ "${actualSourceFolderExists}" != 'false' ]]; then
     log "Restoring data to ${destFolder}"
     doRsync "${actualSrcFolder}/" "${destFolder}"
@@ -202,5 +210,33 @@ function init() {
 
   enableLogging
 
+  readArgs "$@"
+
   set -o errexit -o nounset -o pipefail
+}
+
+# Read know param and writes them into vars
+function readArgs() {
+  POSITIONAL_ARGS=()
+  DATA=''
+  APK=''
+  while [[ $# -gt 0 ]]; do
+    ARG="$1"
+    echo arg=$1
+
+    case ${ARG} in
+    -d | --data)
+      DATA=true
+      shift
+      ;;
+    -a | --apk)
+      APK=true
+      shift
+      ;;
+    *) # Unknown or positional arg
+      POSITIONAL_ARGS+=("$1")
+      shift
+      ;;
+    esac
+  done
 }

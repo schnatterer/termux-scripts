@@ -8,7 +8,7 @@ SCRIPT_NAME=$(basename "$0")
 
 # shellcheck source=./backup-lib.sh
 source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
-init
+init "$@"
 
 function main() {
   nAppsRestored=0

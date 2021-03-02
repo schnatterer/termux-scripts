@@ -32,7 +32,11 @@ ssh-copy-id -p 22223 -i id_rsa user@host
 
 ### Usage
 
-Start the script. On finish an android notification displays the result. Tapping the notification will open the log file.
+Start the script.
+On finish an android notification displays the result.
+Tapping the notification will open the log file.
+
+Note that restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
 
 ```shell
 # Find out package name
@@ -65,6 +69,11 @@ export RSYNC_ARGS='--progress --stats'
 ./restore-app.sh com.nxp.taginfolite user@host:/backup/my/folder/backup
 ```
 
+### Options
+
+* `-a / --apk` - backup/restore APK only
+* `-d / --data` - backup/restore data only
+
 ### Limitations
 
 Note that restoring APKs from a phone that has a different CPU architecture might not work (e.g. armv7 vs armv8/aarch64)
@@ -72,4 +81,3 @@ Note that restoring APKs from a phone that has a different CPU architecture migh
 ### TODO
 * Exclude folders
 * Backup/restore multiple packages
-* Backup/restore data or apks only

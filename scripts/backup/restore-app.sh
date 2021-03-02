@@ -5,7 +5,7 @@ rootSrcFolder="$1"
 BASEDIR=$(dirname $0)
 ABSOLUTE_BASEDIR="$(cd $BASEDIR && pwd)"
 source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
-init
+init "$@"
 
 restoreApp "${rootSrcFolder}"
 

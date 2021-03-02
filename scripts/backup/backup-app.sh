@@ -6,7 +6,7 @@ baseDestFolder="$2"
 BASEDIR=$(dirname $0)
 ABSOLUTE_BASEDIR="$(cd $BASEDIR && pwd)"
 source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
-init
+init "$@"
 
 backupApp "${packageName}" "${baseDestFolder}"
 
