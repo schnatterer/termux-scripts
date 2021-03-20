@@ -74,6 +74,8 @@ export RSYNC_ARGS='--progress --stats'
 * `-a / --apk` - backup/restore APK only
 * `-d / --data` - backup/restore data only
 
+Note that `RSYNC_ARGS='--delete' backup-all-user.sh` deletes files that have been deleted in the source *per app* but does not delete apps that have been deleted.
+
 ### Limitations
 
 Note that restoring APKs from a phone that has a different CPU architecture might not work (e.g. armv7 vs armv8/aarch64)
