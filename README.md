@@ -36,7 +36,14 @@ Start the script.
 On finish an android notification displays the result.
 Tapping the notification will open the log file.
 
-Note that restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
+Note that
+* restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
+* restoring locally might only work from "tmux'" folders or `/data/local/tmp/`, not from `/sdcard`.  
+  There are reports of errors such as this:
+```
+System server has no access to read file context u:object_r:sdcardfs:s0 (from path /storage/emulated/0...base.apk, context u:r:system_server:s0)
+Error: Unable to open file: base.apk
+```
 
 ```shell
 # Find out package name
