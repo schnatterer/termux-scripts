@@ -92,3 +92,4 @@ Note that restoring APKs from a phone that has a different CPU architecture migh
 ### TODO
 * Exclude folders
 * Backup/restore multiple packages
+* logfile off
