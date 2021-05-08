@@ -2,7 +2,7 @@ function backupApp() {
   local packageName="$1"
   local baseDestFolder="$2/$1"
 
-  log "Backing up app $packageName to $baseDestFolder"
+  info "Backing up app $packageName to $baseDestFolder"
 
   if [[ "${APK}" != 'true' ]]; then
     backupFolder "/data/data/$packageName"
@@ -25,7 +25,7 @@ function backupFolder() {
   # Treat all args after src and dst as addition rsync args
   additionalArgs=${additionalArgs[@]:1}
   if [[ -d "${srcFolder}" ]]; then
-    echo "Sycing ${srcFolder} to ${actualDestFolder}"
+    trace "Syncing ${srcFolder} to ${actualDestFolder}"
     doRsync "${srcFolder}/" "${actualDestFolder}" --exclude='cache' ${additionalArgs}
   fi
 }
@@ -35,7 +35,7 @@ function restoreApp() {
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
   local packageName=${rootSrcFolder##*/}
 
-  log "Restoring app $packageName from $rootSrcFolder"
+  info "Restoring app $packageName from $rootSrcFolder"
 
   if [[ "${DATA}" != 'true' ]]; then
     installMultiple "$rootSrcFolder/"
@@ -70,9 +70,9 @@ function restoreFolder() {
   fi
 
   if [[ "${actualSourceFolderExists}" != 'false' ]]; then
-    log "Restoring data to ${destFolder}"
+    trace "Restoring data to ${destFolder}"
     doRsync "${actualSrcFolder}/" "${destFolder}"
-    log "Fixing owner/group ${user}:${group} in ${destFolder}"
+    trace "Fixing owner/group ${user}:${group} in ${destFolder}"
     sudo chown -R "${user}:${group}" "${destFolder}"
   fi
 }
@@ -114,7 +114,7 @@ function sshFromEnv() {
   eval "${remoteShellArgs[*]} ${userAtHost} '${sshCommand}'"
 }
 
-setRemoteShellArgs() {
+function setRemoteShellArgs() {
   remoteShellArgs=('ssh')
 
   set +o nounset
@@ -170,32 +170,50 @@ function installMultiple() {
       totalApkSize=$((totalApkSize + size))
     done
 
-    echo "Creating install session for total APK size ${totalApkSize}"
+    trace "Creating install session for total APK size ${totalApkSize}"
     installCreateOutput=$(sudo pm install-create -S ${totalApkSize})
     sessionId=$(echo "${installCreateOutput}" | grep -E -o '[0-9]+')
 
-    echo "Installing apks in session $sessionId"
+    trace "Installing apks in session $sessionId"
     for apk in *.apk; do
       size=$(wc -c "${apk}" | awk '{print $1}')
-      echo "Writing ${apk} (size ${size}) to session ${sessionId}"
+      trace "Writing ${apk} (size ${size}) to session ${sessionId}"
       # install-write [-S BYTES] SESSION_ID SPLIT_NAME [PATH|-]
       #  Write an apk into the given install session.  If the path is '-', data will be read from stdin
       sudo pm install-write -S "${size}" "${sessionId}" "${apk}" "${apk}"
     done
 
-    echo "Committing session ${sessionId}"
+    trace "Committing session ${sessionId}"
     sudo pm install-commit "${sessionId}"
   )
 }
 
-function log() {
-  echo "$(date '+%Y-%m-%d %H:%M:%S') $*"
+function trace() {
+  if [[ "${LOG_LEVEL}" == 'TRACE' ]]; then
+    __log "$*"
+  fi
 }
 
-function enableLogging() {
+function info() {
+  if [[ "${LOG_LEVEL}" =~ ^(TRACE|INFO)$ ]]; then
+    __log "$*"
+  fi
+}
+
+function warn() {
+  if [[ "${LOG_LEVEL}" =~ ^(TRACE|INFO|WARN)$ ]]; then
+    __log "$*"
+  fi  
+}
+
+function __log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*"
+}
+
+function enableFileLogging() {
   # Almost no android app seems to register for opening ".log" files. So use a more common ending.
   LOG_FILE=${LOG_FILE:-"$(mktemp --suffix=.txt)"}
-  log "Writing output to logfile: ${LOG_FILE}"
+  info "Writing output to logfile: ${LOG_FILE}"
   exec > >(tee -a ${LOG_FILE})
   exec 2> >(tee -a ${LOG_FILE} >&2)
 }
@@ -206,9 +224,16 @@ function printSeconds() {
 
 function init() {
   if [[ -n "${DEBUG}" ]]; then set -x; fi
+  
   SECONDS=0 # Variable SECONDS will track execution time of the command
+  
+  LOG_LEVEL=${LOG_LEVEL:-'INFO'}
+  if [[ ! "${LOG_LEVEL}" =~ ^(TRACE|INFO|WARN|OFF)$ ]]; then
+    echo "WARNING: Unknown Log level '${LOG_LEVEL}'. Defaulting to INFO"
+    LOG_LEVEL='INFO'
+  fi
 
-  enableLogging
+  enableFileLogging
 
   readArgs "$@"
 

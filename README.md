@@ -62,6 +62,7 @@ export SSH_PK="$HOME/.ssh/my-non-default-key"
 export SSH_HOST_FILE="$HOME/somewhere/known_hosts"
 # optional
 export RSYNC_ARGS='--progress --stats'
+export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO 
 
 # Backup and restore individual apps
 ./backup-app.sh com.nxp.taginfolite user@host:/my/folder/backup # Backup to /my/folder/backup/com.nxp.taginfolite
@@ -100,3 +101,4 @@ Note that restoring APKs from a phone that has a different CPU architecture migh
 * Exclude folders
 * Backup/restore multiple packages
 * logfile off
+* Log errors in color

@@ -13,7 +13,7 @@ init "$@"
 function main() {
   nAppsBackedUp=0
 
-  trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "Failed after backing up $nAppsBackedUp / $nUserApps apps in $(printSeconds).\n Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
+  trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "Failed after backing up $nAppsBackedUp / $nUserApps apps in $(printSeconds). Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
 
   # subshell turns line break to space -> array
   # array allows for using for loop, which does not rely on stdin
@@ -21,7 +21,7 @@ function main() {
   packageNames=( $(sudo pm list packages -3) )
 
   nUserApps=${#packageNames[@]}
-  log "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}"
+  info "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}"
 
   for rawPackageName in "${packageNames[@]}"; do
     packageName="${rawPackageName/package:/}"
@@ -29,7 +29,7 @@ function main() {
     nAppsBackedUp=$(( nAppsBackedUp + 1 ))
   done
 
-  log "Finished backing up apps"
+  info "Finished backing up apps"
   termux-notification --id backupAllUserApps --title "Finished backing up apps" \
     --content "Backed up ${nAppsBackedUp} / ${nUserApps} user apps successfully in $(printSeconds)" --action "xdg-open ${LOG_FILE}"
 }

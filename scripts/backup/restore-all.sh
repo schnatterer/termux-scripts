@@ -13,7 +13,7 @@ init "$@"
 function main() {
   nAppsRestored=0
 
-  trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id restoreAllApps --title "Failed restoring apps" --content "Failed after restoring $nAppsRestored / $nApps apps in $(printSeconds).\n Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
+  trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id restoreAllApps --title "Failed restoring apps" --content "Failed after restoring $nAppsRestored / $nApps apps in $(printSeconds). Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
 
   if [[ "${rootSrcFolder}" == *:* ]]; then
     # e.g. ssh user@host ls /a/b/c
@@ -24,7 +24,7 @@ function main() {
   fi
 
   nApps=${#packageNames[@]}
-  log "Restoring all ${nApps} apps from folder ${rootSrcFolder}"
+  info "Restoring all ${nApps} apps from folder ${rootSrcFolder}"
 
   for packageName in "${packageNames[@]}"; do
     if [[ "${packageName}" != 'com.termux' ]]; then 
@@ -36,7 +36,7 @@ function main() {
     nAppsRestored=$(( nAppsRestored + 1))
   done
 
-  log "Finished restoring apps"
+  info "Finished restoring apps"
   termux-notification --id restoreAllApps --title "Finished restoring apps" \
     --content "Restored ${nAppsRestored} / ${nApps} user apps successfully in $(printSeconds)" --action "xdg-open ${LOG_FILE}"
 }
