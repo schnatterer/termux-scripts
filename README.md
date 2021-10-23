@@ -66,7 +66,7 @@ export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO
 
 # Backup and restore individual apps
 ./backup-app.sh com.nxp.taginfolite user@host:/my/folder/backup # Backup to /my/folder/backup/com.nxp.taginfolite
-./restore-app.sh com.nxp.taginfolite user@host:/my/folder/backup # Restore from /my/folder/backup/com.nxp.taginfolite
+./restore-app.sh user@host:/my/folder/backup/com.nxp.taginfolite
 
 # Batch backup
 # Backup all user apps (might be several hundreds!)
