@@ -13,6 +13,14 @@ Automate everything on your android phone using [termux app](https://github.com/
 * Requires 
   * *root* access (`su`),
   * [termux:API app](https://github.com/termux/termux-api)
+* **Note that these scripts only backup user apps and data**.  
+  I recommend backing up at least the following in addition:
+  * `/sdcard`
+  * `/data/system_ce/0/accounts_ce.db` Accounts
+  * `/data/data/com.android.providers.telephony/databases` SMS/MMS
+  * `/data/data/com.android.providers.contacts/databases/` call logs
+  * `/data/misc/keystore` - see #7
+  * Wifi Connections and Bluetooth pairings. How?
 
 ### Preparation
 
@@ -38,6 +46,8 @@ Tapping the notification will open the log file.
 
 Note that
 * restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
+* for now, **restore will likely fail for apps that use an android keystore**. If you backed up `/data/misc/keystore`, 
+ you can restore it manually, though. See #7.
 * restoring locally might only work from "tmux'" folders or `/data/local/tmp/`, not from `/sdcard`.  
   There are reports of errors such as this:
 ```
@@ -70,8 +80,10 @@ export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO
 
 # Batch backup
 # Backup all user apps (might be several hundreds!)
+# Dont forget to backup /sdcard, /data/misc/keystore, etc. in addition (see above)
 ./backup-all-user.sh user@host:/my/folder/backup/backup
 # Restores all apps from a folder (except termux, because this would cancel restore process!)
+# It the app does not work as expected after restore, consider restoring the keystreo (see above)
 ./restore-all.sh user@host:/my/folder/backup/
 # Restore termux separately, if necessary
 ./restore-app.sh com.nxp.taginfolite user@host:/backup/my/folder/backup
