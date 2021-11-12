@@ -83,10 +83,19 @@ export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO
 # Dont forget to backup /sdcard, /data/misc/keystore, etc. in addition (see above)
 ./backup-all-user.sh user@host:/my/folder/backup/backup
 # Restores all apps from a folder (except termux, because this would cancel restore process!)
-# It the app does not work as expected after restore, consider restoring the keystreo (see above)
+# It the app does not work as expected after restore, consider restoring the keystore (see above)
 ./restore-all.sh user@host:/my/folder/backup/
+
 # Restore termux separately, if necessary
-./restore-app.sh com.nxp.taginfolite user@host:/backup/my/folder/backup
+pkg install rsync
+# Uncomment if not needed
+#RSYNC_ARGS=-e "ssh -p 22222 -i $HOME/.ssh/mykey"
+rsync --stats --progress --human-readable -r --times $RSYNC_ARGS user@host:/my/folder/backup/com.termux/data/data/com.termux/files/home/ ~
+rsync --stats --progress --human-readable -r --times $RSYNC_ARGS user@host:/my/folder/backup/com.termux/data/data/com.termux/files/usr/ ../usr
+# Packages are there but don't seem to work, so install them again
+for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql|mythtv)'` ; do apt-get -y --force-yes install --reinstall $pkg ; done
+# If you have been using a different shell, re-enable it, for example:
+#chsh -s zsh
 ```
 
 ### Options
@@ -110,7 +119,7 @@ sudo bash -c  "comm -13  <(ls /data/data | sort) $REMOTE_APPS"
 Note that restoring APKs from a phone that has a different CPU architecture might not work (e.g. armv7 vs armv8/aarch64)
 
 ### TODO
-* Exclude folders
-* Backup/restore multiple packages
+* Exclude folders (e.g. code_cache)
+* Backup/restore multiple (but not all) packages
 * logfile off
 * Log errors in color
