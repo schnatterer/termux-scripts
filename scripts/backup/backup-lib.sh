@@ -74,7 +74,10 @@ function restoreFolder() {
     doRsync "${actualSrcFolder}/" "${destFolder}"
     trace "Fixing owner/group ${user}:${group} in ${destFolder}"
     sudo chown -R "${user}:${group}" "${destFolder}"
+  else
+    info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
   fi
+  
 }
 
 function doRsync() {
@@ -98,7 +101,7 @@ function doRsync() {
   fi
 
   sudo rsync \
-    --human-readable --archive \
+    --human-readable --archive --times \
     "--rsh=${remoteShellArgs[*]}" \
     $(rsyncExternalArgs) \
     ${additionalArgs} \
