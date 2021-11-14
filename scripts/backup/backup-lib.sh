@@ -14,7 +14,9 @@ function backupApp() {
     # Backup all APKs from path (can be multiple for split-apks!)
     apkPath=$(dirname "$(sudo pm path "$packageName" | head -n1 | sed 's/package://')")
     # Only sync APKs, libs, etc are extracted during install
-    doRsync "$apkPath/" "$baseDestFolder/" -m --include='*/' --include='*.apk' --exclude='*'
+    # shellcheck disable=SC2046 
+    # This might return multiple parameters that we don't want quoted here
+    doSync "$apkPath/" "$baseDestFolder/" $(includeOnlyApk)
   fi
 }
 
@@ -26,7 +28,7 @@ function backupFolder() {
   additionalArgs=${additionalArgs[@]:1}
   if [[ -d "${srcFolder}" ]]; then
     trace "Syncing ${srcFolder} to ${actualDestFolder}"
-    doRsync "${srcFolder}/" "${actualDestFolder}" --exclude='cache' ${additionalArgs}
+    doSync "${srcFolder}/" "${actualDestFolder}" $(excludeCache) ${additionalArgs}
   fi
 }
 
@@ -71,13 +73,54 @@ function restoreFolder() {
 
   if [[ "${actualSourceFolderExists}" != 'false' ]]; then
     trace "Restoring data to ${destFolder}"
-    doRsync "${actualSrcFolder}/" "${destFolder}"
+    doSync "${actualSrcFolder}/" "${destFolder}"
     trace "Fixing owner/group ${user}:${group} in ${destFolder}"
     sudo chown -R "${user}:${group}" "${destFolder}"
   else
     info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
   fi
   
+}
+
+function excludeCache() {
+  if [[ "${RCLONE}" == 'true' ]]; then
+    echo "--exclude='/cache/**'"
+  else 
+    echo "--exclude='cache'"
+  fi
+}
+
+function includeOnlyApk() {
+  if [[ "${RCLONE}" == 'true' ]]; then
+    echo "--include='/*.apk"
+  else 
+    echo "-m --include='*/' --include='*.apk' --exclude='*'"
+  fi
+}
+
+function doSync() {
+
+  if [[ "${RCLONE}" == 'true' ]]; then
+    doRclone "$@"
+  else
+    doRsync "$@"
+  fi
+
+}
+
+function doRclone() {
+  src="$1"
+  dst="$2"
+  additionalArgs=("$@")
+  # Treat all args after src and dst as addition rsync args
+  additionalArgs=${additionalArgs[@]:2}
+  RSYNC_ARGS=${RSYNC_ARGS:-''}
+
+  sudo rclone sync \
+    --progress \
+    $(rsyncExternalArgs) \
+    ${additionalArgs} \
+    "${src}" "${dst}"
 }
 
 function doRsync() {
@@ -161,7 +204,9 @@ function installMultiple() {
 
   if [[ "${apkFolder}" == *:* ]]; then
     apkTmp=$(mktemp -d)
-    doRsync "$apkFolder/" "$apkTmp/" -m --include='*/' --include='*.apk' --exclude='*'
+    # shellcheck disable=SC2046 
+    # This might return multiple parameters that we don't want quoted here
+    doSync "$apkFolder/" "$apkTmp/" $(includeOnlyApk)
     apkFolder=$apkTmp
   fi
 
@@ -248,6 +293,7 @@ function readArgs() {
   POSITIONAL_ARGS=()
   DATA=''
   APK=''
+  RCLONE=''
   while [[ $# -gt 0 ]]; do
     ARG="$1"
     echo arg=$1
@@ -259,6 +305,10 @@ function readArgs() {
       ;;
     -a | --apk)
       APK=true
+      shift
+      ;;
+    --rclone)
+      RCLONE=true
       shift
       ;;
     *) # Unknown or positional arg

@@ -102,6 +102,12 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
 
 * `-a / --apk` - backup/restore APK only
 * `-d / --data` - backup/restore data only
+* `--rclone` - use `rclone` instead of `rsync`  
+  * Ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
+  *  cp "$HOME/.config/rclone/rclone.conf" $HOME/.suroot/.config/rclone/
+```shell
+./backup-all-user.sh --rclone remote:/my/folder/backup/backup
+```
 
 Note that `RSYNC_ARGS='--delete' backup-all-user.sh` deletes files that have been deleted in the source *per app* but 
 does not delete apps that have been deleted. This is defensive but might clutter your backup over time.
