@@ -1,3 +1,5 @@
+LIB_DIR=$(dirname "${BASH_SOURCE[${#BASH_SOURCE[@]} - 1]}")
+
 function backupApp() {
   local packageName="$1"
   local baseDestFolder="$2/$1"
@@ -84,17 +86,23 @@ function restoreFolder() {
 
 function excludeCache() {
   if [[ "${RCLONE}" == 'true' ]]; then
-    echo "--exclude='/cache/**'"
+    echo --filter="- /cache/**"
+    #echo --filter-from=<(echo "'- /cache/**'")
+    #echo "--exclude='/cache/**'"
   else 
-    echo "--exclude='cache'"
+    echo --exclude='/cache'
   fi
 }
 
 function includeOnlyApk() {
   if [[ "${RCLONE}" == 'true' ]]; then
-    echo "--include='/*.apk"
+    #echo "--include='/*.apk'"
+    #echo -n --filter="+ /*.apk" --filter='- \*'
+    echo --filter-from=$LIB_DIR/rclone-apk-only-filter.txt
+    #echo --filter={+ /*.apk,- *}
+    
   else 
-    echo "-m --include='*/' --include='*.apk' --exclude='*'"
+    echo -m --include='*/' --include='*.apk' --exclude='*'
   fi
 }
 
@@ -116,10 +124,11 @@ function doRclone() {
   additionalArgs=${additionalArgs[@]:2}
   RSYNC_ARGS=${RSYNC_ARGS:-''}
 
+
+    #--progress \
   sudo rclone sync \
-    --progress \
     $(rsyncExternalArgs) \
-    ${additionalArgs} \
+    "${additionalArgs}" \
     "${src}" "${dst}"
 }
 
