@@ -7,9 +7,9 @@ function backupApp() {
   info "Backing up app $packageName to $baseDestFolder"
 
   if [[ "${APK}" != 'true' ]]; then
-    backupFolder "/data/data/$packageName"
+    backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/data"
 
-    backupFolder "/sdcard/Android/data/$packageName"
+    backupFolder "/sdcard/Android/data/${packageName}" "${baseDestFolder}/sdcard/Android/data/"
   fi
 
   if [[ "${DATA}" != 'true' ]]; then
@@ -24,13 +24,13 @@ function backupApp() {
 
 function backupFolder() {
   srcFolder="$1"
-  actualDestFolder="${baseDestFolder}/${srcFolder}"
-  additionalArgs=("$@")
-  # Treat all args after src and dst as addition rsync args
-  additionalArgs=${additionalArgs[@]:1}
+  rootDestFolder="$2"
+  
   if [[ -d "${srcFolder}" ]]; then
-    trace "Syncing ${srcFolder} to ${actualDestFolder}"
-    doSync "${srcFolder}/" "${actualDestFolder}" $(excludeCache) ${additionalArgs}
+    trace "Syncing ${srcFolder} to ${rootDestFolder}"
+    # Add --delete here to remove files ins dest that have been deleted 
+    # This should also migrate from data/data/${packageName} to data/data
+    doSync "${srcFolder}/" "${rootDestFolder}" $(excludeCache) --delete
   fi
 }
 
@@ -39,27 +39,36 @@ function restoreApp() {
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
   local packageName=${rootSrcFolder##*/}
 
-  info "Restoring app $packageName from $rootSrcFolder"
+  info "Restoring app ${packageName} from ${rootSrcFolder}"
 
   if [[ "${DATA}" != 'true' ]]; then
-    installMultiple "$rootSrcFolder/"
+    installMultiple "${rootSrcFolder}/"
   fi
 
   if [[ "${APK}" != 'true' ]]; then
     user=$(stat -c '%U' "/data/data/$packageName")
     group=$(stat -c '%G' "/data/data/$packageName")
   
-    restoreFolder "${rootSrcFolder}" "/data/data/${packageName}"
+    restoreFolder "${rootSrcFolder}" "/data/data" "${packageName}"
   
-    restoreFolder "${rootSrcFolder}" "/sdcard/Android/data/${packageName}"
+    restoreFolder "${rootSrcFolder}" "/sdcard/Android/data" "${packageName}"
   fi
 }
 
 function restoreFolder() {
+  # e.g. /my/folder/backup/com.nxp.taginfolite
   local rootSrcFolder="$1"
-  local destFolder="$2"
-  local actualSrcFolder="${rootSrcFolder}/${destFolder}"
+  # e.g. /data/data
+  local rootDestFolder="$2"
+  # e.g. com.nxp.taginfolite
+  local packageName="$3"
+  
+  local actualSrcFolder="${rootSrcFolder}/${rootDestFolder}"
+  local actualDestFolder="${rootDestFolder}/${packageName}"
 
+  # TODO build backward compatibility for backups create with old folder format 
+  # e.g. /my/folder/backup/com.nxp.taginfolite/data/data/com.nxp.taginfolite
+  # This is not necessary for rclone, because rclone feature didn't exist with old folder format
   actualSourceFolderExists=false
   if [[ "${actualSrcFolder}" == *:* ]]; then
     # ssh '[ -d /a/b/c ]'
@@ -74,10 +83,10 @@ function restoreFolder() {
   fi
 
   if [[ "${actualSourceFolderExists}" != 'false' ]]; then
-    trace "Restoring data to ${destFolder}"
-    doSync "${actualSrcFolder}/" "${destFolder}"
-    trace "Fixing owner/group ${user}:${group} in ${destFolder}"
-    sudo chown -R "${user}:${group}" "${destFolder}"
+    trace "Restoring data to ${actualDestFolder}"
+    doSync "${actualSrcFolder}/" "${actualDestFolder}"
+    trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
+    sudo chown -R "${user}:${group}" "${actualDestFolder}"
   else
     info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
   fi
@@ -87,8 +96,6 @@ function restoreFolder() {
 function excludeCache() {
   if [[ "${RCLONE}" == 'true' ]]; then
     echo --filter="- /cache/**"
-    #echo --filter-from=<(echo "'- /cache/**'")
-    #echo "--exclude='/cache/**'"
   else 
     echo --exclude='/cache'
   fi
@@ -96,11 +103,8 @@ function excludeCache() {
 
 function includeOnlyApk() {
   if [[ "${RCLONE}" == 'true' ]]; then
-    #echo "--include='/*.apk'"
-    #echo -n --filter="+ /*.apk" --filter='- \*'
-    echo --filter-from=$LIB_DIR/rclone-apk-only-filter.txt
-    #echo --filter={+ /*.apk,- *}
-    
+    # Avoid fuss with whitespaces inside the filter rules by importing them from a file 
+    echo --filter-from="${LIB_DIR}/rclone-apk-only-filter.txt"
   else 
     echo -m --include='*/' --include='*.apk' --exclude='*'
   fi
@@ -124,8 +128,6 @@ function doRclone() {
   additionalArgs=${additionalArgs[@]:2}
   RSYNC_ARGS=${RSYNC_ARGS:-''}
 
-
-    #--progress \
   sudo rclone sync \
     $(rsyncExternalArgs) \
     "${additionalArgs}" \
