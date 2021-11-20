@@ -28,10 +28,7 @@ function backupFolder() {
   
   if [[ -d "${srcFolder}" ]]; then
     trace "Syncing ${srcFolder} to ${rootDestFolder}"
-    # TODO add delete only for rsync
-    # Add --delete here to remove files ins dest that have been deleted 
-    # This should also migrate from data/data/${packageName} to data/data
-    doSync "${srcFolder}/" "${rootDestFolder}" $(excludeCache)
+    doSync "${srcFolder}/" "${rootDestFolder}" $(backupFolderSyncArgs)
   fi
 }
 
@@ -64,10 +61,12 @@ function restoreFolder() {
   # e.g. com.nxp.taginfolite
   local packageName="$3"
   
+  # e.g. /my/folder/backup/com.nxp.taginfolite/data/data
   local actualSrcFolder="${rootSrcFolder}/${rootDestFolder}"
+  # e.g. /data/data/com.nxp.taginfolite
   local actualDestFolder="${rootDestFolder}/${packageName}"
 
-  # TODO build backward compatibility for backups create with old folder format 
+  # TODO build backward compatibility for backups created with old folder format 
   # e.g. /my/folder/backup/com.nxp.taginfolite/data/data/com.nxp.taginfolite
   # This is not necessary for rclone, because rclone feature didn't exist with old folder format
   actualSourceFolderExists=false
@@ -94,12 +93,14 @@ function restoreFolder() {
   
 }
 
- excludeCache() {
+ backupFolderSyncArgs() {
   if [[ "${RCLONE}" == 'true' ]]; then
     # Avoid fuss with whitespaces inside the filter rules by importing them from a file
     echo --filter-from="${LIB_DIR}/rclone-data-filter.txt"
   else 
-    echo --exclude={/cache,/code_cache,/app_tmppccache,/no_backup,/app_pccache,*/temp,*/.thumb_cache,*/.com.google.firebase.crashlytics,*/.Fabric/}
+    # Add --delete here to remove files ins dest that have been deleted 
+    # This should also migrate from data/data/${packageName} to data/data
+    echo --delete --exclude={/cache,/code_cache,/app_tmppccache,/no_backup,/app_pccache,*/temp,*/.thumb_cache,*/.com.google.firebase.crashlytics,*/.Fabric/}
   fi
 }
 
