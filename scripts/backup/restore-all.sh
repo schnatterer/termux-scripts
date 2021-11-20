@@ -12,6 +12,7 @@ init "$@"
 
 function main() {
   nAppsRestored=0
+  nAppsIgnored=0
 
   trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id restoreAllApps --title "Failed restoring apps" --content "Failed after restoring $nAppsRestored / $nApps apps in $(printSeconds). Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
 
@@ -24,21 +25,27 @@ function main() {
   fi
 
   nApps=${#packageNames[@]}
-  info "Restoring all ${nApps} apps from folder ${rootSrcFolder}"
+  info "Restoring all ${nApps} apps from folder ${rootSrcFolder}$([[ -n "${EXCLUDE_PACKAGES}" ]] && echo ". Excluding ${EXCLUDE_PACKAGES}")"
 
   for packageName in "${packageNames[@]}"; do
     if [[ "${packageName}" != 'com.termux' ]]; then 
-      srcFolder="${rootSrcFolder}/${packageName}"
-      restoreApp "${srcFolder}"
+      if ! isExcludedPackage "${packageName}"; then 
+        srcFolder="${rootSrcFolder}/${packageName}"
+        restoreApp "${srcFolder}"
+        nAppsRestored=$(( nAppsRestored + 1))
+      else
+        nAppsIgnored=$(( nAppsIgnored + 1))
+      fi
     else
+      nAppsIgnored=$(( nAppsIgnored + 1))
       echo "WARNING: Skipping restore of termux app, as this would break this restore all loop."
     fi
-    nAppsRestored=$(( nAppsRestored + 1))
   done
 
   info "Finished restoring apps"
   termux-notification --id restoreAllApps --title "Finished restoring apps" \
-    --content "Restored ${nAppsRestored} / ${nApps} user apps successfully in $(printSeconds)" --action "xdg-open ${LOG_FILE}"
+    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) apps\n restored successfully\n in $(printSeconds)")" \
+    --action "xdg-open ${LOG_FILE}"
 }
 
 main "$@"

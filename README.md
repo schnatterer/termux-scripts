@@ -102,6 +102,9 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
 
 * `-a / --apk` - backup/restore APK only
 * `-d / --data` - backup/restore data only
+* `--exclude-packages` (for `backup-all-user`, `restore-all`) semicolon separated wildcards (globbing expressions) of  
+  app package names to exclude.  
+  e.g. `--exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'`
 * `--rclone` - use `rclone` instead of `rsync`  
   * Ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
   *  cp "$HOME/.config/rclone/rclone.conf" $HOME/.suroot/.config/rclone/

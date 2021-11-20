@@ -261,6 +261,23 @@ function trace() {
   fi
 }
 
+function isExcludedPackage() {
+  packageName="$1"
+  
+  for exclude in $(echo "${EXCLUDE_PACKAGES}" | tr ";" "\n")
+  do 
+    # shellcheck disable=SC2053
+    # We want globbing here, so DON'T quote exclude
+    if [[ "${packageName}" == ${exclude} ]]; then
+      info "packageName ${packageName} excluded by exclude parameter: ${exclude}"
+      return 0
+    fi
+  done 
+  
+  return 1
+}
+
+
 function info() {
   if [[ "${LOG_LEVEL}" =~ ^(TRACE|INFO)$ ]]; then
     __log "$*"
@@ -313,6 +330,7 @@ function readArgs() {
   DATA=''
   APK=''
   RCLONE=''
+  EXCLUDE_PACKAGES=''
   while [[ $# -gt 0 ]]; do
     ARG="$1"
     echo arg=$1
@@ -320,20 +338,18 @@ function readArgs() {
     case ${ARG} in
     -d | --data)
       DATA=true
-      shift
-      ;;
-    -a | --apk)
+      shift ;;
+    -a | --apk) 
       APK=true
-      shift
-      ;;
+      shift ;;
     --rclone)
       RCLONE=true
-      shift
-      ;;
+      shift ;;
+    --exclude-packages)
+      EXCLUDE_PACKAGES="$2"; shift 2 ;;
     *) # Unknown or positional arg
       POSITIONAL_ARGS+=("$1")
-      shift
-      ;;
+      shift ;;
     esac
   done
 }

@@ -12,6 +12,8 @@ init "$@"
 
 function main() {
   nAppsBackedUp=0
+  nAppsIgnored=0
+
 
   trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "Failed after backing up $nAppsBackedUp / $nUserApps apps in $(printSeconds). Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
 
@@ -21,17 +23,23 @@ function main() {
   packageNames=( $(sudo pm list packages -3) )
 
   nUserApps=${#packageNames[@]}
-  info "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}"
+  info "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}$([[ -n "${EXCLUDE_PACKAGES}" ]] && echo ". Excluding ${EXCLUDE_PACKAGES}")"
 
   for rawPackageName in "${packageNames[@]}"; do
     packageName="${rawPackageName/package:/}"
-    backupApp "${packageName}" "${baseDestFolder}" 
-    nAppsBackedUp=$(( nAppsBackedUp + 1 ))
+    
+    if ! isExcludedPackage "${packageName}"; then 
+      backupApp "${packageName}" "${baseDestFolder}" 
+      nAppsBackedUp=$(( nAppsBackedUp + 1 ))
+    else
+      nAppsIgnored=$(( nAppsIgnored + 1))
+    fi
   done
 
   info "Finished backing up apps"
   termux-notification --id backupAllUserApps --title "Finished backing up apps" \
-    --content "Backed up ${nAppsBackedUp} / ${nUserApps} user apps successfully in $(printSeconds)" --action "xdg-open ${LOG_FILE}"
+    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) user apps\n backed up successfully\n in $(printSeconds)")" \
+    --action "xdg-open ${LOG_FILE}"
 }
 
 main "$@"
