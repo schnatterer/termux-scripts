@@ -1,0 +1,10 @@
+- /cache/**
+- /code_cache/**
+- /app_tmppccache/**
+- /no_backup/**
+- /app_pccache/**
+- */temp/**
+- */.thumb_cache/**
+- */.com.google.firebase.crashlytics/**
+- */.Fabric/**
+

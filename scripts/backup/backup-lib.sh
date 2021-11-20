@@ -28,9 +28,10 @@ function backupFolder() {
   
   if [[ -d "${srcFolder}" ]]; then
     trace "Syncing ${srcFolder} to ${rootDestFolder}"
+    # TODO add delete only for rsync
     # Add --delete here to remove files ins dest that have been deleted 
     # This should also migrate from data/data/${packageName} to data/data
-    doSync "${srcFolder}/" "${rootDestFolder}" $(excludeCache) --delete
+    doSync "${srcFolder}/" "${rootDestFolder}" $(excludeCache)
   fi
 }
 
@@ -93,18 +94,19 @@ function restoreFolder() {
   
 }
 
-function excludeCache() {
+ excludeCache() {
   if [[ "${RCLONE}" == 'true' ]]; then
-    echo --filter="- /cache/**"
+    # Avoid fuss with whitespaces inside the filter rules by importing them from a file
+    echo --filter-from="${LIB_DIR}/rclone-data-filter.txt"
   else 
-    echo --exclude='/cache'
+    echo --exclude={/cache,/code_cache,/app_tmppccache,/no_backup,/app_pccache,*/temp,*/.thumb_cache,*/.com.google.firebase.crashlytics,*/.Fabric/}
   fi
 }
 
 function includeOnlyApk() {
   if [[ "${RCLONE}" == 'true' ]]; then
     # Avoid fuss with whitespaces inside the filter rules by importing them from a file 
-    echo --filter-from="${LIB_DIR}/rclone-apk-only-filter.txt"
+    echo --filter-from="${LIB_DIR}/rclone-apk-filter.txt"
   else 
     echo -m --include='*/' --include='*.apk' --exclude='*'
   fi
@@ -130,7 +132,7 @@ function doRclone() {
 
   sudo rclone sync \
     $(rsyncExternalArgs) \
-    "${additionalArgs}" \
+    ${additionalArgs} \
     "${src}" "${dst}"
 }
 
