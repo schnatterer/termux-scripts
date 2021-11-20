@@ -54,28 +54,33 @@ function restoreApp() {
 }
 
 function restoreFolder() {
-  # e.g. /my/folder/backup/com.nxp.taginfolite
+  # e.g. /folder/com.nxp.taginfolite
+  # or remote:/folder/com.nxp.taginfolite
   local rootSrcFolder="$1"
   # e.g. /data/data
   local rootDestFolder="$2"
   # e.g. com.nxp.taginfolite
   local packageName="$3"
   
-  # e.g. /my/folder/backup/com.nxp.taginfolite/data/data
+  # e.g. /folder/com.nxp.taginfolite/data/data
   local actualSrcFolder="${rootSrcFolder}/${rootDestFolder}"
   # e.g. /data/data/com.nxp.taginfolite
   local actualDestFolder="${rootDestFolder}/${packageName}"
 
   # TODO build backward compatibility for backups created with old folder format 
-  # e.g. /my/folder/backup/com.nxp.taginfolite/data/data/com.nxp.taginfolite
+  # e.g. /folder/com.nxp.taginfolite/data/data/com.nxp.taginfolite
   # This is not necessary for rclone, because rclone feature didn't exist with old folder format
   actualSourceFolderExists=false
-  if [[ "${actualSrcFolder}" == *:* ]]; then
+  if [[ "${actualSrcFolder}" == *:* ]] && [[ "${RCLONE}" != 'true' ]]; then
     # ssh '[ -d /a/b/c ]'
     local sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
     local localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
 
     if sshFromEnv "${sshCommand}" "[ -d ${localFolder} ]"; then
+      actualSourceFolderExists=true
+    fi
+  elif [[ "${RCLONE}" == 'true' ]]; then
+    if rclone lsd "${actualSrcFolder}" > /dev/null 2>&1; then
       actualSourceFolderExists=true
     fi
   else
@@ -216,7 +221,7 @@ function installMultiple() {
   # * It prints a help dialog by just calling "pm" (--help does not work)
   local apkFolder="$1"
 
-  if [[ "${apkFolder}" == *:* ]]; then
+  if [[ "${apkFolder}" == *:* ]] || [[ "${RCLONE}" == 'true' ]]; then
     apkTmp=$(mktemp -d)
     # shellcheck disable=SC2046 
     # This might return multiple parameters that we don't want quoted here
