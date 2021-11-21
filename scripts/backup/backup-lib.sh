@@ -7,9 +7,9 @@ function backupApp() {
   info "Backing up app $packageName to $baseDestFolder"
 
   if [[ "${APK}" != 'true' ]]; then
-    backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/data"
+    backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/"
 
-    backupFolder "/sdcard/Android/data/${packageName}" "${baseDestFolder}/sdcard/Android/data/"
+    backupFolder "/sdcard/Android/data/${packageName}" "${baseDestFolder}/sdcard/"
   fi
 
   if [[ "${DATA}" != 'true' ]]; then
@@ -47,9 +47,9 @@ function restoreApp() {
     user=$(stat -c '%U' "/data/data/$packageName")
     group=$(stat -c '%G' "/data/data/$packageName")
   
-    restoreFolder "${rootSrcFolder}" "/data/data" "${packageName}"
+    restoreFolder "${rootSrcFolder}" "data" "/data/data"
   
-    restoreFolder "${rootSrcFolder}" "/sdcard/Android/data" "${packageName}"
+    restoreFolder "${rootSrcFolder}" "sdcard" "/sdcard/Android/data"
   fi
 }
 
@@ -57,19 +57,18 @@ function restoreFolder() {
   # e.g. /folder/com.nxp.taginfolite
   # or remote:/folder/com.nxp.taginfolite
   local rootSrcFolder="$1"
+  # e.g. data
+  local relativeSrcFolder="$2"
   # e.g. /data/data
-  local rootDestFolder="$2"
+  local rootDestFolder="$3"
   # e.g. com.nxp.taginfolite
-  local packageName="$3"
+  local packageName=${rootSrcFolder##*/}
   
-  # e.g. /folder/com.nxp.taginfolite/data/data
-  local actualSrcFolder="${rootSrcFolder}/${rootDestFolder}"
+  # e.g. /folder/com.nxp.taginfolite/data/
+  local actualSrcFolder="${rootSrcFolder}/${relativeSrcFolder}"
   # e.g. /data/data/com.nxp.taginfolite
   local actualDestFolder="${rootDestFolder}/${packageName}"
 
-  # TODO build backward compatibility for backups created with old folder format 
-  # e.g. /folder/com.nxp.taginfolite/data/data/com.nxp.taginfolite
-  # This is not necessary for rclone, because rclone feature didn't exist with old folder format
   actualSourceFolderExists=false
   if [[ "${actualSrcFolder}" == *:* ]] && [[ "${RCLONE}" != 'true' ]]; then
     # ssh '[ -d /a/b/c ]'

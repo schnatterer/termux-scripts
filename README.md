@@ -3,6 +3,19 @@ termux-scripts
 
 Automate everything on your android phone using [termux app](https://github.com/termux/termux-app).
 
+## Changelog
+
+Note that starting with [commit 3586230](https://github.com/schnatterer/termux-scripts/commit/3586230) the folder 
+structure is simplified (see [#9](https://github.com/schnatterer/termux-scripts/issues/9)).
+Starting from there, backups made with older versions can no longer be restored. BUT:
+ * Your backup will be migrated to the new structure automatically on the first backup
+ * If you still need to restore an old backup, you can either
+   * use an older version of this repo or
+   * easily adapt to the new folder structure manually, move e.g.  
+     `org.kde.kdeconnect_tp/data/data/org.kde.kdeconnect_tp` to `org.kde.kdeconnect_tp/data/`  
+     and  
+     `org.kde.kdeconnect_tp/sdcard/Android/data/org.kde.kdeconnect_tp` to `org.kde.kdeconnect_tp/sdcard/`
+
 ## Backup and Restore
 
 * Incremental back up and restore 
@@ -30,7 +43,11 @@ Automate everything on your android phone using [termux app](https://github.com/
 
 ```shell
 # Install packages
-apt install rsync termux-api tsu
+apt install termux-api tsu
+# Either install
+apt install rsync
+# or
+apt install rclone
 
 # Fore remote backups, set up key
 ssh-keygen -t ecdsa -b 521
@@ -45,9 +62,10 @@ On finish an android notification displays the result.
 Tapping the notification will open the log file.
 
 Note that
+* `rsync` is used by default for local backup or via ssh. You can opt in to use `rclone` (see Options).
 * restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
 * for now, **restore will likely fail for apps that use an android keystore**. If you backed up `/data/misc/keystore`, 
- you can restore it manually, though. See #7.
+ you can restore it manually, though. See [#7](https://github.com/schnatterer/termux-scripts/issues/7).
 * restoring locally might only work from "tmux'" folders or `/data/local/tmp/`, not from `/sdcard`.  
   There are reports of errors such as this:
 ```
@@ -106,15 +124,23 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
   app package names to exclude.  
   e.g. `--exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'`
 * `--rclone` - use `rclone` instead of `rsync`  
-  * Ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
-  *  cp "$HOME/.config/rclone/rclone.conf" $HOME/.suroot/.config/rclone/
+  * `rclone` supports dozens of cloud providers, local, ssh, etc. Each can be combined with deduplication, encryption, etc. 
+  * Set up your remote with `rclone config`, then 
+```shell
+cp "$HOME/.config/rclone/rclone.conf" $HOME/.suroot/.config/rclone/`
+```
+  * Backups can then be triggered like so, for example
 ```shell
 ./backup-all-user.sh --rclone remote:/my/folder/backup/backup
 ```
+  * Note: `--rclone` ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
 
-Note that `RSYNC_ARGS='--delete' backup-all-user.sh` deletes files that have been deleted in the source *per app* but 
-does not delete apps that have been deleted. This is defensive but might clutter your backup over time.
-If you want a list of apps that are in backup but not installed ont the phone, try the following in termux:
+### Limitations
+
+* restoring APKs from a phone that has a different CPU architecture might not work (e.g. armv7 vs armv8/aarch64)
+* rsync is run with `--delete` by default. So it deletes files that have been deleted in the source *per app* but
+  does not delete apps that have been deleted. This is defensive but might clutter your backup over time.
+  If you want a list of apps that are in backup but not installed ont the phone, try the following in termux:
 
 ```shell
 REMOTE_APPS=$(mktemp)
@@ -123,12 +149,12 @@ ssh user@backup-host ls /app/backup/folder | sort > $REMOTE_APPS
 sudo bash -c  "comm -13  <(ls /data/data | sort) $REMOTE_APPS"
 ```
 
-### Limitations
+## Default excludes
 
-Note that restoring APKs from a phone that has a different CPU architecture might not work (e.g. armv7 vs armv8/aarch64)
+By default a number of caching folders are excluded to speed up backup and restore. 
+See [rclone-data-filter.txt](scripts/backup/rclone-data-filter.txt) for details.
 
 ### TODO
-* Exclude folders (e.g. code_cache)
 * Backup/restore multiple (but not all) packages
 * logfile off
 * Log errors in color
