@@ -27,10 +27,15 @@ function main() {
   nApps=${#packageNames[@]}
   info "Restoring all ${nApps} apps from folder ${rootSrcFolder}$([[ -n "${EXCLUDE_PACKAGES}" ]] && echo ". Excluding ${EXCLUDE_PACKAGES}")"
 
-  for packageName in "${packageNames[@]}"; do
+  for index in "${!packageNames[@]}"; do
+    packageName="${packageNames[index]}"
+    
     if [[ "${packageName}" != 'com.termux' ]]; then 
       if ! isExcludedPackage "${packageName}"; then 
+        
         srcFolder="${rootSrcFolder}/${packageName}"
+        info "Restoring app $(( index+1 ))/${nApps}: ${packageName} from ${srcFolder}"
+        
         restoreApp "${srcFolder}"
         nAppsRestored=$(( nAppsRestored + 1))
       else
@@ -44,7 +49,7 @@ function main() {
 
   info "Finished restoring apps"
   termux-notification --id restoreAllApps --title "Finished restoring apps" \
-    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) apps\n restored successfully\n in $(printSeconds)")" \
+    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) apps\nrestored successfully\nin $(printSeconds)")" \
     --action "xdg-open ${LOG_FILE}"
 }
 

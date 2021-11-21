@@ -25,10 +25,14 @@ function main() {
   nUserApps=${#packageNames[@]}
   info "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}$([[ -n "${EXCLUDE_PACKAGES}" ]] && echo ". Excluding ${EXCLUDE_PACKAGES}")"
 
-  for rawPackageName in "${packageNames[@]}"; do
+  for index in "${!packageNames[@]}"; do
+    rawPackageName="${packageNames[index]}"
     packageName="${rawPackageName/package:/}"
     
     if ! isExcludedPackage "${packageName}"; then 
+      
+      info "Backing up app $(( index+1 ))/${nUserApps}: ${packageName} to ${baseDestFolder}"
+      
       backupApp "${packageName}" "${baseDestFolder}" 
       nAppsBackedUp=$(( nAppsBackedUp + 1 ))
     else
@@ -38,7 +42,7 @@ function main() {
 
   info "Finished backing up apps"
   termux-notification --id backupAllUserApps --title "Finished backing up apps" \
-    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) user apps\n backed up successfully\n in $(printSeconds)")" \
+    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) user apps\nbacked up successfully\nin $(printSeconds)")" \
     --action "xdg-open ${LOG_FILE}"
 }
 

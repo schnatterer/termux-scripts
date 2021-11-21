@@ -4,8 +4,6 @@ function backupApp() {
   local packageName="$1"
   local baseDestFolder="$2/$1"
 
-  info "Backing up app $packageName to $baseDestFolder"
-
   if [[ "${APK}" != 'true' ]]; then
     backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/"
 
@@ -36,8 +34,6 @@ function restoreApp() {
   local rootSrcFolder="$1"
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
   local packageName=${rootSrcFolder##*/}
-
-  info "Restoring app ${packageName} from ${rootSrcFolder}"
 
   if [[ "${DATA}" != 'true' ]]; then
     installMultiple "${rootSrcFolder}/"
