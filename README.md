@@ -22,7 +22,7 @@ Starting from there, backups made with older versions can no longer be restored.
   * APK (also works with split APKs), 
   * `/data/data/...` folder,
   * and `/sdcard/Android/...` folder
-* either locally on your phone or remotely via SSH 
+* either locally on your phone or remotely via SSH (via `rsync`) or to the cloud (via [`rclone`](https://rclone.org/#providers)) 
 * Requires 
   * *root* access (`su`),
   * [termux:API app](https://github.com/termux/termux-api)
@@ -32,14 +32,15 @@ Starting from there, backups made with older versions can no longer be restored.
   * `/data/system_ce/0/accounts_ce.db` Accounts
   * `/data/data/com.android.providers.telephony/databases` SMS/MMS
   * `/data/data/com.android.providers.contacts/databases/` call logs
-  * `/data/misc/keystore` - see #7
-  * Wifi Connections and Bluetooth pairings. How?
+  * `/data/misc/keystore` - see [#7](https://github.com/schnatterer/termux-scripts/issues/7)
+  * Wifi Connections and Bluetooth pairings. Please [tell me how](https://github.com/schnatterer/termux-scripts/issues/new).
 
 ### Preparation
 
 * For local backup only, the packages mentioned bellow are needed
-* For backing up to a remote target you need to have private SSH key in your termux and the appropriate public key added 
+* For backing up to via SSH, yo need a key in your termux and the appropriate public key added 
   to `authorized_keys` on the target device
+* For backing up to the cloud, you need to configure an `rclone` remote. See [`--rclone` option](#options)
 
 ```shell
 # Install packages
@@ -62,16 +63,18 @@ On finish an android notification displays the result.
 Tapping the notification will open the log file.
 
 Note that
-* `rsync` is used by default for local backup or via ssh. You can opt in to use `rclone` (see Options).
+* `rsync` is used by default for local backup or via SSH. You can opt in to use `rclone` (see [options](#options)).
 * restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
 * for now, **restore will likely fail for apps that use an android keystore**. If you backed up `/data/misc/keystore`, 
  you can restore it manually, though. See [#7](https://github.com/schnatterer/termux-scripts/issues/7).
 * restoring locally might only work from "tmux'" folders or `/data/local/tmp/`, not from `/sdcard`.  
   There are reports of errors such as this:
-```
-System server has no access to read file context u:object_r:sdcardfs:s0 (from path /storage/emulated/0...base.apk, context u:r:system_server:s0)
-Error: Unable to open file: base.apk
-```
+  ```
+  System server has no access to read file context u:object_r:sdcardfs:s0 (from path /storage/emulated/0...base.apk, context u:r:system_server:s0)
+  Error: Unable to open file: base.apk
+  ```
+
+#### Usage examples
 
 ```shell
 # Find out package name
@@ -100,7 +103,7 @@ export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO
 # Backup all user apps (might be several hundreds!)
 # Dont forget to backup /sdcard, /data/misc/keystore, etc. in addition (see above)
 ./backup-all-user.sh user@host:/my/folder/backup/backup
-# Restores all apps from a folder (except termux, because this would cancel restore process!)
+# Restores all apps from a folder (except termux, because this would cancel restore process! See bellow)
 # It the app does not work as expected after restore, consider restoring the keystore (see above)
 ./restore-all.sh user@host:/my/folder/backup/
 
@@ -121,18 +124,19 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
 * `-a / --apk` - backup/restore APK only
 * `-d / --data` - backup/restore data only
 * `--exclude-packages` (for `backup-all-user`, `restore-all`) semicolon separated wildcards (globbing expressions) of  
-  app package names to exclude.  
-  e.g. `--exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'`
+  app package names to exclude. e.g. 
+  ```shell
+  # Note that --exclude-packages=... won't work
+  --exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'
+  ```
 * `--rclone` - use `rclone` instead of `rsync`  
-  * `rclone` supports dozens of cloud providers, local, ssh, etc. Each can be combined with deduplication, encryption, etc. 
-  * Set up your remote with `rclone config`, then 
-```shell
-cp "$HOME/.config/rclone/rclone.conf" $HOME/.suroot/.config/rclone/`
-```
+  * `rclone` supports [dozens of cloud providers](https://rclone.org/#providers), local, ssh, etc. Each can be combined with deduplication, encryption, etc. 
+  * Set up your remote with `sudo rclone config`. Why `sudo`? Because the backup is also executed with `sudo` to be able to access folders like `/data/data`, etc. 
+  * When backing up to the cloud I recommend to add an encrypted remote and use it for backing up
   * Backups can then be triggered like so, for example
-```shell
-./backup-all-user.sh --rclone remote:/my/folder/backup/backup
-```
+  ```shell
+  ./backup-all-user.sh --rclone encrypted-remote:/my/folder/backup/backup
+  ```
   * Note: `--rclone` ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
 
 ### Limitations
@@ -151,10 +155,5 @@ sudo bash -c  "comm -13  <(ls /data/data | sort) $REMOTE_APPS"
 
 ## Default excludes
 
-By default a number of caching folders are excluded to speed up backup and restore. 
+By default a number of folders (caching, temp, trackers, etc.) are excluded to speed up backup and restore. 
 See [rclone-data-filter.txt](scripts/backup/rclone-data-filter.txt) for details.
-
-### TODO
-* Backup/restore multiple (but not all) packages
-* logfile off
-* Log errors in color
