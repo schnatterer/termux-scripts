@@ -40,7 +40,7 @@ Starting from there, backups made with older versions can no longer be restored.
 * For local backup only, the packages mentioned bellow are needed
 * For backing up to via SSH, yo need a key in your termux and the appropriate public key added 
   to `authorized_keys` on the target device
-* For backing up to the cloud, you need to configure an `rclone` remote. See [`--rclone` option](#options)
+* For backing up to the cloud, you need to configure an `rclone` remote. See [rclone](#rclone)
 
 ```shell
 # Install packages
@@ -63,7 +63,7 @@ On finish an android notification displays the result.
 Tapping the notification will open the log file.
 
 Note that
-* `rsync` is used by default for local backup or via SSH. You can opt in to use `rclone` (see [options](#options)).
+* `rsync` is used by default for local backup or via SSH. You can opt in to use `rclone` (see [rclone](#rclone)).
 * restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
 * for now, **restore will likely fail for apps that use an android keystore**. If you backed up `/data/misc/keystore`, 
  you can restore it manually, though. See [#7](https://github.com/schnatterer/termux-scripts/issues/7).
@@ -74,7 +74,7 @@ Note that
   Error: Unable to open file: base.apk
   ```
 
-#### Usage examples
+### Usage examples
 
 ```shell
 # Find out package name
@@ -118,7 +118,57 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
 # If you have been using a different shell, re-enable it, for example:
 #chsh -s zsh
 ```
+### Rclone
 
+* `--rclone` - use `rclone` instead of `rsync`
+* `rclone` supports [dozens of cloud providers](https://rclone.org/#providers), local, ssh, etc.
+  Each can be combined with deduplication, encryption, etc.  
+  Note: For local or SSH copy `rsync` has some advantages, e.g. keeping timestamps, user rights, symlinks, etc.
+* Getting started:
+  * Set up your remote with `sudo rclone config`. Why `sudo`? Because the backup is also executed with `sudo` to be able 
+    to access folders like `/data/data`, etc.
+  * When backing up to the cloud I **recommend to add an encrypted remote and use it for backing up**
+  * Backups can then be triggered like so, for example
+    ```shell
+    ./backup-all-user.sh --rclone remote-encrypted:/my/folder/backup/
+    ```
+* Note:
+  * `--rclone` ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
+  * If you want to exclude files use `RSYNC_ARGS` in conjunction with [`--filter-from`](https://rclone.org/filtering/#filter-from-read-filtering-patterns-from-a-file).  
+    That way you escape bash quoting hell another time.
+    ```shell
+    export RSYNC_ARGS=--filter-from=$HOME/.shortcuts/.rclone-app-excludes.txt 
+    ```
+  * I ended up excluding wide parts of my termux installation to save time and space
+    ```text
+    + /files/usr/var/lib/dpkg/status
+    - /files/usr/**
+    - /files/home/storage/**
+    - /*/.npm/**
+    - */node_modules/**
+    ```
+  * The first backup to the cloud will take hours! Rough approximation: 100 apps/10GB: 6 hours.
+  * Subsequent (differential) backups will be much faster. Rough approximation with only few changes: 100 apps/10GB: < 30 minutes.
+  * You can optimize your backup times by identifying and excluding large folders.
+    * locally, e.g.
+      ```shell
+      cd /data/data && sudo ncdu
+      ```
+    * or remotely after first backup
+      ```shell
+      rclone ncdu remote-encrypted:/my/folder/backup/
+      ```
+  * Common warnings:
+    * `Failed to copy: invalidRequest: pathIsTooLong:` - well, the path is longer than your cloud provider supports.  
+       Possible Solutions:
+      * Exclude files (if not essential)
+      * Try to use a path as short as possible. As close to your root path in the cloud as possible.  
+        termux-scripts already optimized its internal folder structure ([#9](https://github.com/schnatterer/termux-scripts/issues/9)).
+        Not much room for optimization left.
+    * `Can't follow symlink without -L/--copy-links` - rclone can't handle symlinks. You could use `RSYNC_ARGS` and `-L`
+      but this would copy the file or folder behind the symlink which in my experience isn't want you want usually.  
+    * `Can't transfer non file/directory` - the file is empty. Even including doesn't seem to help
+  
 ### Options
 
 * `-a / --apk` - backup/restore APK only
@@ -129,15 +179,7 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
   # Note that --exclude-packages=... won't work
   --exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'
   ```
-* `--rclone` - use `rclone` instead of `rsync`  
-  * `rclone` supports [dozens of cloud providers](https://rclone.org/#providers), local, ssh, etc. Each can be combined with deduplication, encryption, etc. 
-  * Set up your remote with `sudo rclone config`. Why `sudo`? Because the backup is also executed with `sudo` to be able to access folders like `/data/data`, etc. 
-  * When backing up to the cloud I recommend to add an encrypted remote and use it for backing up
-  * Backups can then be triggered like so, for example
-  ```shell
-  ./backup-all-user.sh --rclone encrypted-remote:/my/folder/backup/backup
-  ```
-  * Note: `--rclone` ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
+* `--rclone` - use `rclone` instead of `rsync`. See [rclone](#rclone).
 
 ### Limitations
 
