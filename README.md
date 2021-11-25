@@ -147,8 +147,8 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
     - /*/.npm/**
     - */node_modules/**
     ```
-  * The first backup to the cloud will take hours! Rough approximation: 100 apps/10GB: 6 hours.
-  * Subsequent (differential) backups will be much faster. Rough approximation with only few changes: 100 apps/10GB: < 30 minutes.
+  * The first backup to the cloud will take hours! Rough approximation: 100 apps/10GB (encrypted): 6 hours. Subsequent (differential) backups will be much faster. Rough approximation with only few changes: 100 apps/10GB: 20-60 minutes. 
+  * A local rsync via SSH (unencrypted) takes about 2 hours initially, 15 minutes subsequently.
   * You can optimize your backup times by identifying and excluding large folders.
     * locally, e.g.
       ```shell
