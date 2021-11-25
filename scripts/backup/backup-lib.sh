@@ -1,32 +1,32 @@
+LIB_DIR=$(dirname "${BASH_SOURCE[${#BASH_SOURCE[@]} - 1]}")
+
 function backupApp() {
   local packageName="$1"
   local baseDestFolder="$2/$1"
 
-  info "Backing up app $packageName to $baseDestFolder"
-
   if [[ "${APK}" != 'true' ]]; then
-    backupFolder "/data/data/$packageName"
+    backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/"
 
-    backupFolder "/sdcard/Android/data/$packageName"
+    backupFolder "/sdcard/Android/data/${packageName}" "${baseDestFolder}/sdcard/"
   fi
 
   if [[ "${DATA}" != 'true' ]]; then
     # Backup all APKs from path (can be multiple for split-apks!)
     apkPath=$(dirname "$(sudo pm path "$packageName" | head -n1 | sed 's/package://')")
     # Only sync APKs, libs, etc are extracted during install
-    doRsync "$apkPath/" "$baseDestFolder/" -m --include='*/' --include='*.apk' --exclude='*'
+    # shellcheck disable=SC2046 
+    # This might return multiple parameters that we don't want quoted here
+    doSync "$apkPath/" "$baseDestFolder/" $(includeOnlyApk)
   fi
 }
 
 function backupFolder() {
   srcFolder="$1"
-  actualDestFolder="${baseDestFolder}/${srcFolder}"
-  additionalArgs=("$@")
-  # Treat all args after src and dst as addition rsync args
-  additionalArgs=${additionalArgs[@]:1}
+  rootDestFolder="$2"
+  
   if [[ -d "${srcFolder}" ]]; then
-    trace "Syncing ${srcFolder} to ${actualDestFolder}"
-    doRsync "${srcFolder}/" "${actualDestFolder}" --exclude='cache' ${additionalArgs}
+    trace "Syncing ${srcFolder} to ${rootDestFolder}"
+    doSync "${srcFolder}/" "${rootDestFolder}" $(backupFolderSyncArgs)
   fi
 }
 
@@ -35,29 +35,38 @@ function restoreApp() {
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
   local packageName=${rootSrcFolder##*/}
 
-  info "Restoring app $packageName from $rootSrcFolder"
-
   if [[ "${DATA}" != 'true' ]]; then
-    installMultiple "$rootSrcFolder/"
+    installMultiple "${rootSrcFolder}/"
   fi
 
   if [[ "${APK}" != 'true' ]]; then
     user=$(stat -c '%U' "/data/data/$packageName")
     group=$(stat -c '%G' "/data/data/$packageName")
   
-    restoreFolder "${rootSrcFolder}" "/data/data/${packageName}"
+    restoreFolder "${rootSrcFolder}" "data" "/data/data"
   
-    restoreFolder "${rootSrcFolder}" "/sdcard/Android/data/${packageName}"
+    restoreFolder "${rootSrcFolder}" "sdcard" "/sdcard/Android/data"
   fi
 }
 
 function restoreFolder() {
+  # e.g. /folder/com.nxp.taginfolite
+  # or remote:/folder/com.nxp.taginfolite
   local rootSrcFolder="$1"
-  local destFolder="$2"
-  local actualSrcFolder="${rootSrcFolder}/${destFolder}"
+  # e.g. data
+  local relativeSrcFolder="$2"
+  # e.g. /data/data
+  local rootDestFolder="$3"
+  # e.g. com.nxp.taginfolite
+  local packageName=${rootSrcFolder##*/}
+  
+  # e.g. /folder/com.nxp.taginfolite/data/
+  local actualSrcFolder="${rootSrcFolder}/${relativeSrcFolder}"
+  # e.g. /data/data/com.nxp.taginfolite
+  local actualDestFolder="${rootDestFolder}/${packageName}"
 
   actualSourceFolderExists=false
-  if [[ "${actualSrcFolder}" == *:* ]]; then
+  if [[ "${actualSrcFolder}" == *:* ]] && [[ "${RCLONE}" != 'true' ]]; then
     # ssh '[ -d /a/b/c ]'
     local sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
     local localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
@@ -65,19 +74,67 @@ function restoreFolder() {
     if sshFromEnv "${sshCommand}" "[ -d ${localFolder} ]"; then
       actualSourceFolderExists=true
     fi
+  elif [[ "${RCLONE}" == 'true' ]]; then
+    if rclone lsd "${actualSrcFolder}" > /dev/null 2>&1; then
+      actualSourceFolderExists=true
+    fi
   else
     [[ -d "${actualSrcFolder}" ]] && actualSourceFolderExists=true
   fi
 
   if [[ "${actualSourceFolderExists}" != 'false' ]]; then
-    trace "Restoring data to ${destFolder}"
-    doRsync "${actualSrcFolder}/" "${destFolder}"
-    trace "Fixing owner/group ${user}:${group} in ${destFolder}"
-    sudo chown -R "${user}:${group}" "${destFolder}"
+    trace "Restoring data to ${actualDestFolder}"
+    doSync "${actualSrcFolder}/" "${actualDestFolder}"
+    trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
+    sudo chown -R "${user}:${group}" "${actualDestFolder}"
   else
     info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
   fi
   
+}
+
+ backupFolderSyncArgs() {
+  if [[ "${RCLONE}" == 'true' ]]; then
+    # Avoid fuss with whitespaces inside the filter rules by importing them from a file
+    echo --filter-from="${LIB_DIR}/rclone-data-filter.txt"
+  else 
+    # Add --delete here to remove files ins dest that have been deleted 
+    # This should also migrate from data/data/${packageName} to data/data
+    echo --delete --exclude={/cache,/code_cache,/app_tmppccache,/no_backup,/app_pccache,*/temp,*/.thumb_cache,*/.com.google.firebase.crashlytics,*/.Fabric/}
+  fi
+}
+
+function includeOnlyApk() {
+  if [[ "${RCLONE}" == 'true' ]]; then
+    # Avoid fuss with whitespaces inside the filter rules by importing them from a file 
+    echo --filter-from="${LIB_DIR}/rclone-apk-filter.txt"
+  else 
+    echo -m --include='*/' --include='*.apk' --exclude='*'
+  fi
+}
+
+function doSync() {
+
+  if [[ "${RCLONE}" == 'true' ]]; then
+    doRclone "$@"
+  else
+    doRsync "$@"
+  fi
+
+}
+
+function doRclone() {
+  src="$1"
+  dst="$2"
+  additionalArgs=("$@")
+  # Treat all args after src and dst as addition rsync args
+  additionalArgs=${additionalArgs[@]:2}
+  RSYNC_ARGS=${RSYNC_ARGS:-''}
+
+  sudo rclone sync \
+    $(rsyncExternalArgs) \
+    ${additionalArgs} \
+    "${src}" "${dst}"
 }
 
 function doRsync() {
@@ -159,9 +216,11 @@ function installMultiple() {
   # * It prints a help dialog by just calling "pm" (--help does not work)
   local apkFolder="$1"
 
-  if [[ "${apkFolder}" == *:* ]]; then
+  if [[ "${apkFolder}" == *:* ]] || [[ "${RCLONE}" == 'true' ]]; then
     apkTmp=$(mktemp -d)
-    doRsync "$apkFolder/" "$apkTmp/" -m --include='*/' --include='*.apk' --exclude='*'
+    # shellcheck disable=SC2046 
+    # This might return multiple parameters that we don't want quoted here
+    doSync "$apkFolder/" "$apkTmp/" $(includeOnlyApk)
     apkFolder=$apkTmp
   fi
 
@@ -196,6 +255,23 @@ function trace() {
     __log "$*"
   fi
 }
+
+function isExcludedPackage() {
+  packageName="$1"
+  
+  for exclude in $(echo "${EXCLUDE_PACKAGES}" | tr ";" "\n")
+  do 
+    # shellcheck disable=SC2053
+    # We want globbing here, so DON'T quote exclude
+    if [[ "${packageName}" == ${exclude} ]]; then
+      info "packageName ${packageName} excluded by exclude parameter: ${exclude}"
+      return 0
+    fi
+  done 
+  
+  return 1
+}
+
 
 function info() {
   if [[ "${LOG_LEVEL}" =~ ^(TRACE|INFO)$ ]]; then
@@ -248,6 +324,8 @@ function readArgs() {
   POSITIONAL_ARGS=()
   DATA=''
   APK=''
+  RCLONE=''
+  EXCLUDE_PACKAGES=''
   while [[ $# -gt 0 ]]; do
     ARG="$1"
     echo arg=$1
@@ -255,16 +333,18 @@ function readArgs() {
     case ${ARG} in
     -d | --data)
       DATA=true
-      shift
-      ;;
-    -a | --apk)
+      shift ;;
+    -a | --apk) 
       APK=true
-      shift
-      ;;
+      shift ;;
+    --rclone)
+      RCLONE=true
+      shift ;;
+    --exclude-packages)
+      EXCLUDE_PACKAGES="$2"; shift 2 ;;
     *) # Unknown or positional arg
       POSITIONAL_ARGS+=("$1")
-      shift
-      ;;
+      shift ;;
     esac
   done
 }

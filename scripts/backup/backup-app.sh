@@ -8,6 +8,7 @@ ABSOLUTE_BASEDIR="$(cd $BASEDIR && pwd)"
 source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
 init "$@"
 
+info "Backing up app ${packageName} to ${baseDestFolder}"
 backupApp "${packageName}" "${baseDestFolder}"
 
 termux-notification --id backupApps --title "Finished backing up app" --content "$packageName to $baseDestFolder"

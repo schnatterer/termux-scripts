@@ -3,13 +3,26 @@ termux-scripts
 
 Automate everything on your android phone using [termux app](https://github.com/termux/termux-app).
 
+## Changelog
+
+Note that starting with [commit 3586230](https://github.com/schnatterer/termux-scripts/commit/3586230) the folder 
+structure is simplified (see [#9](https://github.com/schnatterer/termux-scripts/issues/9)).
+Starting from there, backups made with older versions can no longer be restored. BUT:
+ * Your backup will be migrated to the new structure automatically on the first backup
+ * If you still need to restore an old backup, you can either
+   * use an older version of this repo or
+   * easily adapt to the new folder structure manually, move e.g.  
+     `org.kde.kdeconnect_tp/data/data/org.kde.kdeconnect_tp` to `org.kde.kdeconnect_tp/data/`  
+     and  
+     `org.kde.kdeconnect_tp/sdcard/Android/data/org.kde.kdeconnect_tp` to `org.kde.kdeconnect_tp/sdcard/`
+
 ## Backup and Restore
 
 * Incremental back up and restore 
   * APK (also works with split APKs), 
   * `/data/data/...` folder,
   * and `/sdcard/Android/...` folder
-* either locally on your phone or remotely via SSH 
+* either locally on your phone or remotely via SSH (via `rsync`) or to the cloud (via [`rclone`](https://rclone.org/#providers)) 
 * Requires 
   * *root* access (`su`),
   * [termux:API app](https://github.com/termux/termux-api)
@@ -19,18 +32,23 @@ Automate everything on your android phone using [termux app](https://github.com/
   * `/data/system_ce/0/accounts_ce.db` Accounts
   * `/data/data/com.android.providers.telephony/databases` SMS/MMS
   * `/data/data/com.android.providers.contacts/databases/` call logs
-  * `/data/misc/keystore` - see #7
-  * Wifi Connections and Bluetooth pairings. How?
+  * `/data/misc/keystore` - see [#7](https://github.com/schnatterer/termux-scripts/issues/7)
+  * Wifi Connections and Bluetooth pairings. Please [tell me how](https://github.com/schnatterer/termux-scripts/issues/new).
 
 ### Preparation
 
 * For local backup only, the packages mentioned bellow are needed
-* For backing up to a remote target you need to have private SSH key in your termux and the appropriate public key added 
+* For backing up to via SSH, yo need a key in your termux and the appropriate public key added 
   to `authorized_keys` on the target device
+* For backing up to the cloud, you need to configure an `rclone` remote. See [rclone](#rclone)
 
 ```shell
 # Install packages
-apt install rsync termux-api tsu
+apt install termux-api tsu
+# Either install
+apt install rsync
+# or
+apt install rclone
 
 # Fore remote backups, set up key
 ssh-keygen -t ecdsa -b 521
@@ -45,15 +63,18 @@ On finish an android notification displays the result.
 Tapping the notification will open the log file.
 
 Note that
+* `rsync` is used by default for local backup or via SSH. You can opt in to use `rclone` (see [rclone](#rclone)).
 * restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
 * for now, **restore will likely fail for apps that use an android keystore**. If you backed up `/data/misc/keystore`, 
- you can restore it manually, though. See #7.
+ you can restore it manually, though. See [#7](https://github.com/schnatterer/termux-scripts/issues/7).
 * restoring locally might only work from "tmux'" folders or `/data/local/tmp/`, not from `/sdcard`.  
   There are reports of errors such as this:
-```
-System server has no access to read file context u:object_r:sdcardfs:s0 (from path /storage/emulated/0...base.apk, context u:r:system_server:s0)
-Error: Unable to open file: base.apk
-```
+  ```
+  System server has no access to read file context u:object_r:sdcardfs:s0 (from path /storage/emulated/0...base.apk, context u:r:system_server:s0)
+  Error: Unable to open file: base.apk
+  ```
+
+### Usage examples
 
 ```shell
 # Find out package name
@@ -82,7 +103,7 @@ export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO
 # Backup all user apps (might be several hundreds!)
 # Dont forget to backup /sdcard, /data/misc/keystore, etc. in addition (see above)
 ./backup-all-user.sh user@host:/my/folder/backup/backup
-# Restores all apps from a folder (except termux, because this would cancel restore process!)
+# Restores all apps from a folder (except termux, because this would cancel restore process! See bellow)
 # It the app does not work as expected after restore, consider restoring the keystore (see above)
 ./restore-all.sh user@host:/my/folder/backup/
 
@@ -97,15 +118,75 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
 # If you have been using a different shell, re-enable it, for example:
 #chsh -s zsh
 ```
+### Rclone
 
+* `--rclone` - use `rclone` instead of `rsync`
+* `rclone` supports [dozens of cloud providers](https://rclone.org/#providers), local, ssh, etc.
+  Each can be combined with deduplication, encryption, etc.  
+  Note: For local or SSH copy `rsync` has some advantages, e.g. keeping timestamps, user rights, symlinks, etc.
+* Getting started:
+  * Set up your remote with `sudo rclone config`. Why `sudo`? Because the backup is also executed with `sudo` to be able 
+    to access folders like `/data/data`, etc.
+  * When backing up to the cloud I **recommend to add an encrypted remote and use it for backing up**
+  * Backups can then be triggered like so, for example
+    ```shell
+    ./backup-all-user.sh --rclone remote-encrypted:/my/folder/backup/
+    ```
+* Note:
+  * `--rclone` ignores `SSH_*` env vars, but passes on `RSYNC_ARGS`. Maybe this will be renamed to `SYNC_ARGS` one day.
+  * If you want to exclude files use `RSYNC_ARGS` in conjunction with [`--filter-from`](https://rclone.org/filtering/#filter-from-read-filtering-patterns-from-a-file).  
+    That way you escape bash quoting hell another time.
+    ```shell
+    export RSYNC_ARGS=--filter-from=$HOME/.shortcuts/.rclone-app-excludes.txt 
+    ```
+  * I ended up excluding wide parts of my termux installation to save time and space
+    ```text
+    + /files/usr/var/lib/dpkg/status
+    - /files/usr/**
+    - /files/home/storage/**
+    - /*/.npm/**
+    - */node_modules/**
+    ```
+  * The first backup to the cloud will take hours! Rough approximation: 100 apps/10GB (encrypted): 6 hours. Subsequent (differential) backups will be much faster. Rough approximation with only few changes: 100 apps/10GB: 20-60 minutes. 
+  * A local rsync via SSH (unencrypted) takes about 2 hours initially, 15 minutes subsequently.
+  * You can optimize your backup times by identifying and excluding large folders.
+    * locally, e.g.
+      ```shell
+      cd /data/data && sudo ncdu
+      ```
+    * or remotely after first backup
+      ```shell
+      rclone ncdu remote-encrypted:/my/folder/backup/
+      ```
+  * Common warnings:
+    * `Failed to copy: invalidRequest: pathIsTooLong:` - well, the path is longer than your cloud provider supports.  
+       Possible Solutions:
+      * Exclude files (if not essential)
+      * Try to use a path as short as possible. As close to your root path in the cloud as possible.  
+        termux-scripts already optimized its internal folder structure ([#9](https://github.com/schnatterer/termux-scripts/issues/9)).
+        Not much room for optimization left.
+    * `Can't follow symlink without -L/--copy-links` - rclone can't handle symlinks. You could use `RSYNC_ARGS` and `-L`
+      but this would copy the file or folder behind the symlink which in my experience isn't want you want usually.  
+    * `Can't transfer non file/directory` - the file is empty. Even including doesn't seem to help
+  
 ### Options
 
 * `-a / --apk` - backup/restore APK only
 * `-d / --data` - backup/restore data only
+* `--exclude-packages` (for `backup-all-user`, `restore-all`) semicolon separated wildcards (globbing expressions) of  
+  app package names to exclude. e.g. 
+  ```shell
+  # Note that --exclude-packages=... won't work
+  --exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'
+  ```
+* `--rclone` - use `rclone` instead of `rsync`. See [rclone](#rclone).
 
-Note that `RSYNC_ARGS='--delete' backup-all-user.sh` deletes files that have been deleted in the source *per app* but 
-does not delete apps that have been deleted. This is defensive but might clutter your backup over time.
-If you want a list of apps that are in backup but not installed ont the phone, try the following in termux:
+### Limitations
+
+* restoring APKs from a phone that has a different CPU architecture might not work (e.g. armv7 vs armv8/aarch64)
+* rsync is run with `--delete` by default. So it deletes files that have been deleted in the source *per app* but
+  does not delete apps that have been deleted. This is defensive but might clutter your backup over time.
+  If you want a list of apps that are in backup but not installed ont the phone, try the following in termux:
 
 ```shell
 REMOTE_APPS=$(mktemp)
@@ -114,12 +195,7 @@ ssh user@backup-host ls /app/backup/folder | sort > $REMOTE_APPS
 sudo bash -c  "comm -13  <(ls /data/data | sort) $REMOTE_APPS"
 ```
 
-### Limitations
+## Default excludes
 
-Note that restoring APKs from a phone that has a different CPU architecture might not work (e.g. armv7 vs armv8/aarch64)
-
-### TODO
-* Exclude folders (e.g. code_cache)
-* Backup/restore multiple (but not all) packages
-* logfile off
-* Log errors in color
+By default a number of folders (caching, temp, trackers, etc.) are excluded to speed up backup and restore. 
+See [rclone-data-filter.txt](scripts/backup/rclone-data-filter.txt) for details.
