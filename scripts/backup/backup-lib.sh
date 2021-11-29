@@ -5,9 +5,15 @@ function backupApp() {
   local baseDestFolder="$2/$1"
 
   if [[ "${APK}" != 'true' ]]; then
+    
+    # Backup to target paths as short as possible to avoid "path too long" errors
     backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/"
 
     backupFolder "/sdcard/Android/data/${packageName}" "${baseDestFolder}/sdcard/"
+    
+    # Backing up to /sdcard/data and /sdcard/media would have been more intuitive
+    # But: media was added later and migrating data would be too much effort for me right now
+    backupFolder "/sdcard/Android/media/${packageName}" "${baseDestFolder}/sdcard-media/"
   fi
 
   if [[ "${DATA}" != 'true' ]]; then
@@ -46,6 +52,8 @@ function restoreApp() {
     restoreFolder "${rootSrcFolder}" "data" "/data/data"
   
     restoreFolder "${rootSrcFolder}" "sdcard" "/sdcard/Android/data"
+    
+    restoreFolder "${rootSrcFolder}" "sdcard-media" "/sdcard/Android/media"
   fi
 }
 
