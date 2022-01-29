@@ -77,11 +77,28 @@ function restoreFolder() {
   # e.g. /data/data/com.nxp.taginfolite
   local actualDestFolder="${rootDestFolder}/${packageName}"
 
+
+  if [[ "$(checkActualSourceFolderExists "${actualSrcFolder}")" == 'true' ]]; then
+    trace "Restoring data to ${actualDestFolder}"
+    doSync "${actualSrcFolder}/" "${actualDestFolder}"
+    trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
+    sudo chown -R "${user}:${group}" "${actualDestFolder}"
+  else
+    info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
+  fi
+  
+}
+
+function checkActualSourceFolderExists() {
+  actualSrcFolder="$1"
   actualSourceFolderExists=false
+  local sshCommand
+  local localFolder
+  
   if [[ "${actualSrcFolder}" == *:* ]] && [[ "${RCLONE}" != 'true' ]]; then
     # ssh '[ -d /a/b/c ]'
-    local sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
-    local localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
+    sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
+    localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
 
     if sshFromEnv "${sshCommand}" "[ -d ${localFolder} ]"; then
       actualSourceFolderExists=true
@@ -93,19 +110,11 @@ function restoreFolder() {
   else
     [[ -d "${actualSrcFolder}" ]] && actualSourceFolderExists=true
   fi
-
-  if [[ "${actualSourceFolderExists}" != 'false' ]]; then
-    trace "Restoring data to ${actualDestFolder}"
-    doSync "${actualSrcFolder}/" "${actualDestFolder}"
-    trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
-    sudo chown -R "${user}:${group}" "${actualDestFolder}"
-  else
-    info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
-  fi
   
+  echo ${actualSourceFolderExists}
 }
 
- backupFolderSyncArgs() {
+function backupFolderSyncArgs() {
   if [[ "${RCLONE}" == 'true' ]]; then
     # Avoid fuss with whitespaces inside the filter rules by importing them from a file
     echo --filter-from="${LIB_DIR}/rclone-data-filter.txt"
