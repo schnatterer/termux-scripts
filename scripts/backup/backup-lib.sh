@@ -30,11 +30,15 @@ function backupFolder() {
   srcFolder="$1"
   rootDestFolder="$2"
   
-  if [[ -d "${srcFolder}" ]]; then
+  # An unpriv user might not be allowed to read /data/data folders. So use root :/
+  if sudo [ -d "${srcFolder}" ]; then
     trace "Syncing ${srcFolder} to ${rootDestFolder}"
     doSync "${srcFolder}/" "${rootDestFolder}" $(backupFolderSyncArgs)
+  else
+    trace "Folder ${srcFolder} does not exist. Skipping."
   fi
 }
+
 
 function restoreApp() {
   local rootSrcFolder="$1"
@@ -46,8 +50,8 @@ function restoreApp() {
   fi
 
   if [[ "${APK}" != 'true' ]]; then
-    user=$(stat -c '%U' "/data/data/$packageName")
-    group=$(stat -c '%G' "/data/data/$packageName")
+    user=$(sudo stat -c '%U' "/data/data/$packageName")
+    group=$(sudo stat -c '%G' "/data/data/$packageName")
   
     restoreFolder "${rootSrcFolder}" "data" "/data/data"
   
@@ -158,7 +162,7 @@ function doRsync() {
     # e.g. execViaSsh user@host 'mkdir -p /a/b/c'
     sshFromEnv "$(removeDirFromSshExpression "${dst}")" "mkdir -p $(removeUserAndHostNameFromSshExpression "${dst}")"
   else
-    mkdir -p "${dst}"
+    sudo mkdir -p "${dst}"
   fi
 
   if [[ "${src}" == *:* ]] || [[ "${dst}" == *:* ]]; then
