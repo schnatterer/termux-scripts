@@ -49,7 +49,7 @@ function main() {
 
   info "Finished restoring apps"
   termux-notification --id restoreAllApps --title "Finished restoring apps" \
-    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) apps\nrestored successfully\nin $(printSeconds)")" \
+    --content "$(echo -e "${nAppsRestored} / ${nApps} (skipped ${nAppsIgnored}) apps\nrestored successfully\nin $(printSeconds)")" \
     --action "xdg-open ${LOG_FILE}"
 }
 
