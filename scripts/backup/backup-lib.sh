@@ -30,11 +30,15 @@ function backupFolder() {
   srcFolder="$1"
   rootDestFolder="$2"
   
-  if [[ -d "${srcFolder}" ]]; then
+  # An unpriv user might not be allowed to read /data/data folders. So use root :/
+  if sudo [ -d "${srcFolder}" ]; then
     trace "Syncing ${srcFolder} to ${rootDestFolder}"
     doSync "${srcFolder}/" "${rootDestFolder}" $(backupFolderSyncArgs)
+  else
+    trace "Folder ${srcFolder} does not exist. Skipping."
   fi
 }
+
 
 function restoreApp() {
   local rootSrcFolder="$1"
@@ -46,8 +50,8 @@ function restoreApp() {
   fi
 
   if [[ "${APK}" != 'true' ]]; then
-    user=$(stat -c '%U' "/data/data/$packageName")
-    group=$(stat -c '%G' "/data/data/$packageName")
+    user=$(sudo stat -c '%U' "/data/data/$packageName")
+    group=$(sudo stat -c '%G' "/data/data/$packageName")
   
     restoreFolder "${rootSrcFolder}" "data" "/data/data"
   
@@ -73,11 +77,28 @@ function restoreFolder() {
   # e.g. /data/data/com.nxp.taginfolite
   local actualDestFolder="${rootDestFolder}/${packageName}"
 
+
+  if [[ "$(checkActualSourceFolderExists "${actualSrcFolder}")" == 'true' ]]; then
+    trace "Restoring data to ${actualDestFolder}"
+    doSync "${actualSrcFolder}/" "${actualDestFolder}"
+    trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
+    sudo chown -R "${user}:${group}" "${actualDestFolder}"
+  else
+    info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
+  fi
+  
+}
+
+function checkActualSourceFolderExists() {
+  actualSrcFolder="$1"
   actualSourceFolderExists=false
+  local sshCommand
+  local localFolder
+  
   if [[ "${actualSrcFolder}" == *:* ]] && [[ "${RCLONE}" != 'true' ]]; then
     # ssh '[ -d /a/b/c ]'
-    local sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
-    local localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
+    sshCommand="$(removeDirFromSshExpression "${actualSrcFolder}")"
+    localFolder="$(removeUserAndHostNameFromSshExpression "${actualSrcFolder}")"
 
     if sshFromEnv "${sshCommand}" "[ -d ${localFolder} ]"; then
       actualSourceFolderExists=true
@@ -89,19 +110,11 @@ function restoreFolder() {
   else
     [[ -d "${actualSrcFolder}" ]] && actualSourceFolderExists=true
   fi
-
-  if [[ "${actualSourceFolderExists}" != 'false' ]]; then
-    trace "Restoring data to ${actualDestFolder}"
-    doSync "${actualSrcFolder}/" "${actualDestFolder}"
-    trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
-    sudo chown -R "${user}:${group}" "${actualDestFolder}"
-  else
-    info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
-  fi
   
+  echo ${actualSourceFolderExists}
 }
 
- backupFolderSyncArgs() {
+function backupFolderSyncArgs() {
   if [[ "${RCLONE}" == 'true' ]]; then
     # Avoid fuss with whitespaces inside the filter rules by importing them from a file
     echo --filter-from="${LIB_DIR}/rclone-data-filter.txt"
@@ -158,7 +171,7 @@ function doRsync() {
     # e.g. execViaSsh user@host 'mkdir -p /a/b/c'
     sshFromEnv "$(removeDirFromSshExpression "${dst}")" "mkdir -p $(removeUserAndHostNameFromSshExpression "${dst}")"
   else
-    mkdir -p "${dst}"
+    sudo mkdir -p "${dst}"
   fi
 
   if [[ "${src}" == *:* ]] || [[ "${dst}" == *:* ]]; then

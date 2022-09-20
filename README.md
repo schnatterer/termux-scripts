@@ -34,6 +34,8 @@ Starting from there, backups made with older versions can no longer be restored.
   * `/data/data/com.android.providers.contacts/databases/` call logs
   * `/data/misc/keystore` - see [#7](https://github.com/schnatterer/termux-scripts/issues/7)
   * Wifi Connections and Bluetooth pairings. Please [tell me how](https://github.com/schnatterer/termux-scripts/issues/new).
+  * Note that restoring files from `/data/` might not be possible. I have my doubts, especially about `keystore`, accounts 
+    and contacts. 
 
 ### Preparation
 
@@ -44,7 +46,7 @@ Starting from there, backups made with older versions can no longer be restored.
 
 ```shell
 # Install packages
-apt install termux-api tsu
+apt install termux-api tsu openssh
 # Either install
 apt install rsync
 # or
@@ -53,7 +55,7 @@ apt install rclone
 # Fore remote backups, set up key
 ssh-keygen -t ecdsa -b 521
 # Copy key to the remote machine. Password authentication has to be enabled in order to install pubkey on remote machine.
-ssh-copy-id -p 22223 -i id_rsa user@host
+ssh-copy-id -p 22222 -i id_ecdsa.pub user@host
 ```
 
 ### Usage
@@ -66,7 +68,11 @@ Note that
 * `rsync` is used by default for local backup or via SSH. You can opt in to use `rclone` (see [rclone](#rclone)).
 * restore will not uninstall an app if it exists. Downgrade or signature mismatch might lead to failure.
 * for now, **restore will likely fail for apps that use an android keystore**. If you backed up `/data/misc/keystore`, 
- you can restore it manually, though. See [#7](https://github.com/schnatterer/termux-scripts/issues/7).
+ you might be able to restore it manually, though. See [#7](https://github.com/schnatterer/termux-scripts/issues/7).
+* Restoring a backup into a higher/lower Android version (e.g. when migrating to a new phone) is risky!  
+  Known issues:
+  * Android 11 -> 12: Some apps (e.g. whatsapp, locus map) moved their public storage from 
+   `/sdcard` to `/sdcard/Android/data/${packageId}`. Solution: Restore, before starting the app manually move folder.
 * restoring locally might only work from "tmux'" folders or `/data/local/tmp/`, not from `/sdcard`.  
   There are reports of errors such as this:
   ```
@@ -86,7 +92,7 @@ sudo pm list packages | grep tag
 
 # Remote roundtrip
 # If not set the default port (22) is used
-export SSH_PORT=22223
+export SSH_PORT=22222
 # If not set the default key is used
 export SSH_PK="$HOME/.ssh/my-non-default-key"
 # If not set, the default is used
@@ -109,10 +115,10 @@ export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO
 
 # Restore termux separately, if necessary
 pkg install rsync
-# Uncomment if not needed
+# Uncomment if needed
 #RSYNC_ARGS=-e "ssh -p 22222 -i $HOME/.ssh/mykey"
 rsync --stats --progress --human-readable -r --times $RSYNC_ARGS user@host:/my/folder/backup/com.termux/data/data/com.termux/files/home/ ~
-rsync --stats --progress --human-readable -r --times $RSYNC_ARGS user@host:/my/folder/backup/com.termux/data/data/com.termux/files/usr/ ../usr
+rsync --stats --progress --human-readable -r --times $RSYNC_ARGS user@host:/my/folder/backup/com.termux/data/data/com.termux/files/usr ../usr/
 # Packages are there but don't seem to work, so install them again
 for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql|mythtv)'` ; do apt-get -y --force-yes install --reinstall $pkg ; done
 # If you have been using a different shell, re-enable it, for example:
