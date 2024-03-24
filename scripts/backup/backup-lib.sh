@@ -41,9 +41,9 @@ function backupFolder() {
 
 
 function restoreApp() {
-  local rootSrcFolder="$1"
+  local packageName rootSrcFolder="$1"
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
-  local packageName=${rootSrcFolder##*/}
+  packageName=$(extractAppNameFromFolder "$rootSrcFolder")
 
   if [[ "${DATA}" != 'true' ]]; then
     installMultiple "${rootSrcFolder}/"
@@ -64,13 +64,15 @@ function restoreApp() {
 function restoreFolder() {
   # e.g. /folder/com.nxp.taginfolite
   # or remote:/folder/com.nxp.taginfolite
-  local rootSrcFolder="$1"
+  # or remote:/folder/com.nxp.taginfolite/
+  local packageName rootSrcFolder="$1"
+  # e.g. com.nxp.taginfolite
+  packageName=$(extractAppNameFromFolder "$rootSrcFolder")
   # e.g. data
   local relativeSrcFolder="$2"
   # e.g. /data/data
   local rootDestFolder="$3"
-  # e.g. com.nxp.taginfolite
-  local packageName=${rootSrcFolder##*/}
+  
   
   # e.g. /folder/com.nxp.taginfolite/data/
   local actualSrcFolder="${rootSrcFolder}/${relativeSrcFolder}"
@@ -87,6 +89,20 @@ function restoreFolder() {
     info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
   fi
   
+}
+
+function extractAppNameFromFolder() {
+  local packageName rootSrcFolder="$1"
+  # Remove trailing slashes
+  # shellcheck disable=SC2001
+  packageName=$(echo "$rootSrcFolder" | sed 's:/*$::')
+  packageName=${packageName##*/}
+  if [[ -z "$packageName" ]]; then
+      # Avoid running chown -R on /data/data
+      warn "Unable to determine package name from ${rootSrcFolder}. Exiting before something goes wrong."
+      exit 1
+  fi
+  echo "${packageName}"
 }
 
 function checkActualSourceFolderExists() {

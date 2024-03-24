@@ -16,10 +16,13 @@ function main() {
 
   trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id restoreAllApps --title "Failed restoring apps" --content "Failed after restoring $nAppsRestored / $nApps apps in $(printSeconds). Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
 
-  if [[ "${rootSrcFolder}" == *:* ]]; then
+  if [[ "${rootSrcFolder}" == *:* ]] && [[ "${RCLONE}" != 'true' ]]; then
     # e.g. ssh user@host ls /a/b/c
     # subshell turns line break to space -> array
     packageNames=( $(sshFromEnv "$(removeDirFromSshExpression "${rootSrcFolder}")" "ls $(removeUserAndHostNameFromSshExpression "${rootSrcFolder}")" ) )
+  elif [[ "${RCLONE}" == 'true' ]]; then
+    # remove trailing slashes
+     packageNames=( $(rclone lsf "${rootSrcFolder}" | sed 's:/*$::') ) 
   else
     packageNames=( $(ls "${rootSrcFolder}") )
   fi
