@@ -30,11 +30,24 @@ function main() {
   nApps=${#packageNames[@]}
   info "Restoring all ${nApps} apps from folder ${rootSrcFolder}$([[ -n "${EXCLUDE_PACKAGES}" ]] && echo ". Excluding ${EXCLUDE_PACKAGES}")"
 
-  for index in "${!packageNames[@]}"; do
-    packageName="${packageNames[index]}"
+  # Sort for deterministic order
+  readarray -t sortedPackageNames < <(printf '%s\n' "${packageNames[@]}" | sort)
+  
+  start='true'
+  if [[ -n "${START_AT_PACKAGE}" ]]; then
+    start='false'
+  fi
+  
+  for index in "${!sortedPackageNames[@]}"; do
+    packageName="${sortedPackageNames[index]}"
+    
+    if [[ "${packageName}" == "${START_AT_PACKAGE}" ]]; then
+        start='true'
+        echo "Found start-at package, starting restore: ${START_AT_PACKAGE}"
+    fi
     
     if [[ "${packageName}" != 'com.termux' ]]; then 
-      if ! isExcludedPackage "${packageName}"; then 
+      if ! isExcludedPackage "${packageName}" && [[ "$start" == 'true' ]]; then 
         
         srcFolder="${rootSrcFolder}/${packageName}"
         info "Restoring app $(( index+1 ))/${nApps}: ${packageName} from ${srcFolder}"
@@ -43,6 +56,9 @@ function main() {
         nAppsRestored=$(( nAppsRestored + 1))
       else
         nAppsIgnored=$(( nAppsIgnored + 1))
+        if [[ -n "${START_AT_PACKAGE}" ]]; then
+          echo "Skipped app ${packageName} because start-at package not reached: ${START_AT_PACKAGE}"
+        fi
       fi
     else
       nAppsIgnored=$(( nAppsIgnored + 1))

@@ -25,18 +25,35 @@ function main() {
   nUserApps=${#packageNames[@]}
   info "Backing up all ${nUserApps} user-installed apps to ${baseDestFolder}$([[ -n "${EXCLUDE_PACKAGES}" ]] && echo ". Excluding ${EXCLUDE_PACKAGES}")"
 
-  for index in "${!packageNames[@]}"; do
+  # Sort for deterministic order
+  readarray -t sortedPackageNames < <(printf '%s\n' "${packageNames[@]}" | sort)
+  
+  start='true'
+  if [[ -n "${START_AT_PACKAGE}" ]]; then
+    start='false'
+  fi
+  
+  for index in "${!sortedPackageNames[@]}"; do
+    packageName="${sortedPackageNames[index]}"
+    
     rawPackageName="${packageNames[index]}"
     packageName="${rawPackageName/package:/}"
     
-    if ! isExcludedPackage "${packageName}"; then 
-      
+    if [[ "${packageName}" == "${START_AT_PACKAGE}" ]]; then
+        start='true'
+        echo "Found start-at package, starting backup: ${START_AT_PACKAGE}"
+    fi
+    
+    if ! isExcludedPackage "${packageName}" && [[ "${start}" == 'true' ]]; then
       info "Backing up app $(( index+1 ))/${nUserApps}: ${packageName} to ${baseDestFolder}"
       
       backupApp "${packageName}" "${baseDestFolder}" 
       nAppsBackedUp=$(( nAppsBackedUp + 1 ))
     else
       nAppsIgnored=$(( nAppsIgnored + 1))
+      if [[ -n "${START_AT_PACKAGE}" ]]; then
+        echo "Skipped app ${packageName} because start-at package not reached: ${START_AT_PACKAGE}"
+      fi
     fi
   done
 

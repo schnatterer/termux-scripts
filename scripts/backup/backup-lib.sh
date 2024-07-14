@@ -363,6 +363,7 @@ function readArgs() {
   APK=''
   RCLONE=''
   EXCLUDE_PACKAGES=''
+  START_AT_PACKAGE=''
   while [[ $# -gt 0 ]]; do
     ARG="$1"
     echo arg=$1
@@ -379,6 +380,8 @@ function readArgs() {
       shift ;;
     --exclude-packages)
       EXCLUDE_PACKAGES="$2"; shift 2 ;;
+    --start-at)
+      START_AT_PACKAGE="$2"; shift 2 ;;
     *) # Unknown or positional arg
       POSITIONAL_ARGS+=("$1")
       shift ;;

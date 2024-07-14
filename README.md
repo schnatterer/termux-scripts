@@ -185,6 +185,7 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
   # Note that --exclude-packages=... won't work
   --exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'
   ```
+* `--start-at $PACKAGE` - skips all packages before, useful for continuing after an error in backup-all-user.sh or restore-all.sh
 * `--rclone` - use `rclone` instead of `rsync`. See [rclone](#rclone).
 
 ### Limitations
