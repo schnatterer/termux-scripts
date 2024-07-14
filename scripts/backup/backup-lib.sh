@@ -270,7 +270,11 @@ function installMultiple() {
     done
 
     trace "Creating install session for total APK size ${totalApkSize}"
-    installCreateOutput=$(sudo pm install-create -S ${totalApkSize})
+    local params=()
+    if [[ "${BYPASS_LOW_TARGET_SDK}" == 'true' ]]; then
+      params+=("--bypass-low-target-sdk-block")
+    fi
+    installCreateOutput=$(sudo pm install-create -S ${totalApkSize} "${params[@]}")
     sessionId=$(echo "${installCreateOutput}" | grep -E -o '[0-9]+')
 
     trace "Installing apks in session $sessionId"
@@ -364,6 +368,7 @@ function readArgs() {
   RCLONE=''
   EXCLUDE_PACKAGES=''
   START_AT_PACKAGE=''
+  BYPASS_LOW_TARGET_SDK=''
   while [[ $# -gt 0 ]]; do
     ARG="$1"
     echo arg=$1
@@ -377,6 +382,9 @@ function readArgs() {
       shift ;;
     --rclone)
       RCLONE=true
+      shift ;;
+    --bypass-low-target-sdk-block)
+      BYPASS_LOW_TARGET_SDK=true
       shift ;;
     --exclude-packages)
       EXCLUDE_PACKAGES="$2"; shift 2 ;;

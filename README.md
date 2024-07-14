@@ -186,6 +186,7 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
   --exclude-packages 'net.oneplus.*;com.oneplus.*;com.android.vending.*'
   ```
 * `--start-at $PACKAGE` - skips all packages before, useful for continuing after an error in backup-all-user.sh or restore-all.sh
+* `--bypass-low-target-sdk-block` - avoid error `INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 23, but found 21` for legacy apps, starting [with Android 14](https://developer.android.com/about/versions/14/behavior-changes-all#minimum-target-api-level). See [PackageManager](https://android.googlesource.com/platform/frameworks/base/+/master/services/core/java/com/android/server/pm/PackageManagerShellCommand.java) for more details.
 * `--rclone` - use `rclone` instead of `rsync`. See [rclone](#rclone).
 
 ### Limitations
