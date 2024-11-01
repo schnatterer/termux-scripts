@@ -4,6 +4,11 @@ function backupApp() {
   local packageName="$1"
   local baseDestFolder="$2/$1"
 
+  if ! isAppInstalled "${packageName}"; then
+    warn "Cannot backup app ${packageName}, because it is not installed"
+    exit 1
+  fi
+  
   if [[ "${APK}" != 'true' ]]; then
     
     # Backup to target paths as short as possible to avoid "path too long" errors
