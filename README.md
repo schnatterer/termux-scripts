@@ -30,12 +30,16 @@ Starting from there, backups made with older versions can no longer be restored.
   I recommend backing up at least the following in addition:
   * `/sdcard`
   * `/data/system_ce/0/accounts_ce.db` Accounts
-  * `/data/data/com.android.providers.telephony/databases` SMS/MMS
-  * `/data/data/com.android.providers.contacts/databases/` call logs
-  * `/data/misc/keystore` - see [#7](https://github.com/schnatterer/termux-scripts/issues/7)
-  * Wifi Connections and Bluetooth pairings. Please [tell me how](https://github.com/schnatterer/termux-scripts/issues/new).
-  * Note that restoring files from `/data/` might not be possible. I have my doubts, especially about `keystore`, accounts 
-    and contacts. 
+  * system apps if needed (browser, e.g. chromium, vanadium, `com.android.launcher3`)
+  * `/data/data/com.android.providers.telephony/databases` SMS/MMS (alternatively, you could use [SMS Import / Export](https://github.com/tmo1/sms-ie) to write SMS+call logs and contacts to the filesystem and back them up from there)
+  * `/data/data/com.android.providers.contacts/databases/` call logs (maybe also `/data/data/com.android.calllogbackup`)
+  * Maybe `/data/data/com.android.providers.settings`
+  * Maybe `/data/data/com.android.providers.contacts` (if you're system includes Seedvault, [`org.calyxos.backup.contacts`](https://github.com/seedvault-app/seedvault/tree/9557dfd4e763b8738086f0c39a2d3014e6be8315/contactsbackup) might work as well)
+  * Maybe `/data/data/com.android.providers.calenders` (alternatively you could sync them calenders and contacts using [davx5](https://github.com/bitfireAT/davx5-ose) or [MyPhoneExplorer](https://www.fjsoft.at/en/))
+  * Wifi Connections and Bluetooth pairings. Please [tell me how](https://github.com/schnatterer/termux-scripts/issues/new).  
+    Wifi connections are stored here: `/data/misc/apexdata/com.android.wifi/WifiConfigStore.xml`. Not sure if restoring works from there, though.
+  * Note that restoring files to `/data/` might not be possible. I have my doubts, especially about `keystore`, accounts and contacts. 
+  * (`/data/misc/keystore` - see [#7](https://github.com/schnatterer/termux-scripts/issues/7))
 
 ### Preparation
 
@@ -207,3 +211,8 @@ sudo bash -c  "comm -13  <(ls /data/data | sort) $REMOTE_APPS"
 
 By default a number of folders (caching, temp, trackers, etc.) are excluded to speed up backup and restore. 
 See [rclone-data-filter.txt](scripts/backup/rclone-data-filter.txt) for details.
+
+# Alternatives
+
+* [Neo-Backup](https://github.com/NeoApplications/Neo-Backup) Looks promising and much more convenient to use an app. But needs to create a local backup that then can be uploaded: Takes longer and requires twice the space :/
+* Similar scripts, but remote via adb (still require root, last commit 2013): ART https://xdaforums.com/t/tools-zips-scripts-android-backup-and-restore-tools-multiple-devices-platforms.4016617/, https://community.e.foundation/t/how-to-do-a-restore-back-up-from-seedvault/39603/2, remote backup
