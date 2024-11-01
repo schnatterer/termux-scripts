@@ -47,7 +47,7 @@ function main() {
     fi
     
     if [[ "${packageName}" != 'com.termux' ]]; then 
-      if ! isExcludedPackage "${packageName}" && [[ "$start" == 'true' ]]; then 
+      if [[ "$start" == 'true' ]]; then 
         
         srcFolder="${rootSrcFolder}/${packageName}"
         info "Restoring app $(( index+1 ))/${nApps}: ${packageName} from ${srcFolder}"

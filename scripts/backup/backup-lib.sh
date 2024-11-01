@@ -44,6 +44,11 @@ function restoreApp() {
   local packageName rootSrcFolder="$1"
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
   packageName=$(extractAppNameFromFolder "$rootSrcFolder")
+  
+ if isExcludedPackage "${packageName}" || 
+   isExcludedBecauseExisting "${packageName}"; then
+   return
+ fi
 
   if [[ "${DATA}" != 'true' ]]; then
     installMultiple "${rootSrcFolder}/"
@@ -298,7 +303,7 @@ function trace() {
 }
 
 function isExcludedPackage() {
-  packageName="$1"
+  local packageName="$1"
   
   for exclude in $(echo "${EXCLUDE_PACKAGES}" | tr ";" "\n")
   do 
@@ -311,6 +316,23 @@ function isExcludedPackage() {
   done 
   
   return 1
+}
+
+# Separate this from isExcludedPackage, because it only makes sense for restoring, not backing up
+function isExcludedBecauseExisting() {
+  local packageName="$1"
+  
+  if [ "${EXCLUDE_EXISTING}" == "true" ]; then
+      if isAppInstalled "${packageName}"; then
+          info "packageName ${packageName} excluded because already installed and exclude-existing parameter is set"
+          return 0
+      fi
+  fi 
+}
+
+function isAppInstalled() {
+  local packageName="$1"
+  sudo pm list packages | grep -q "$packageName"
 }
 
 
@@ -368,6 +390,7 @@ function readArgs() {
   RCLONE=''
   EXCLUDE_PACKAGES=''
   START_AT_PACKAGE=''
+  EXCLUDE_EXISTING=''
   BYPASS_LOW_TARGET_SDK=''
   while [[ $# -gt 0 ]]; do
     ARG="$1"
@@ -388,6 +411,9 @@ function readArgs() {
       shift ;;
     --exclude-packages)
       EXCLUDE_PACKAGES="$2"; shift 2 ;;
+    --exclude-existing)
+      EXCLUDE_EXISTING=true
+      shift ;;
     --start-at)
       START_AT_PACKAGE="$2"; shift 2 ;;
     *) # Unknown or positional arg
