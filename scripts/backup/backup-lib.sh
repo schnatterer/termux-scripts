@@ -332,7 +332,8 @@ function isExcludedBecauseExisting() {
           info "packageName ${packageName} excluded because already installed and exclude-existing parameter is set"
           return 0
       fi
-  fi 
+  fi
+  return 1
 }
 
 function isAppInstalled() {
