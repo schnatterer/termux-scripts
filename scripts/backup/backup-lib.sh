@@ -93,8 +93,12 @@ function restoreFolder() {
   if [[ "$(checkActualSourceFolderExists "${actualSrcFolder}")" == 'true' ]]; then
     trace "Restoring data to ${actualDestFolder}"
     doSync "${actualSrcFolder}/" "${actualDestFolder}"
-    trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
-    sudo chown -R "${user}:${group}" "${actualDestFolder}"
+    # Avoid chown: cannot access '/sdcard/Android/data/xyz': No such file or directory 
+    # Likely caused by rclone not creating empty folders
+    if [[ -d "${actualDestFolder}" ]]; then
+      trace "Fixing owner/group ${user}:${group} in ${actualDestFolder}"
+      sudo chown -R "${user}:${group}" "${actualDestFolder}"
+    fi
   else
     info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
   fi
