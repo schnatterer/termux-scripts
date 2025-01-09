@@ -10,25 +10,45 @@ function backupApp() {
   fi
   
   if [[ "${APK}" != 'true' ]]; then
-    
-    # Backup to target paths as short as possible to avoid "path too long" errors
-    backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/"
-
-    backupFolder "/sdcard/Android/data/${packageName}" "${baseDestFolder}/sdcard/"
-    
-    # Backing up to /sdcard/data and /sdcard/media would have been more intuitive
-    # But: media was added later and migrating data would be too much effort for me right now
-    backupFolder "/sdcard/Android/media/${packageName}" "${baseDestFolder}/sdcard-media/"
+    if [[ "${packageName}" != 'com.termux' ]]; then 
+      # Backup to target paths as short as possible to avoid "path too long" errors
+      backupFolder "/data/data/${packageName}" "${baseDestFolder}/data/"
+  
+      backupFolder "/sdcard/Android/data/${packageName}" "${baseDestFolder}/sdcard/"
+      
+      # Backing up to /sdcard/data and /sdcard/media would have been more intuitive
+      # But: media was added later and migrating data would be too much effort for me right now
+      backupFolder "/sdcard/Android/media/${packageName}" "${baseDestFolder}/sdcard-media/"
+    else
+      backupTermux "$@"
+    fi
   fi
 
   if [[ "${DATA}" != 'true' ]]; then
-    # Backup all APKs from path (can be multiple for split-apks!)
-    apkPath=$(dirname "$(sudo pm path "$packageName" | head -n1 | sed 's/package://')")
-    # Only sync APKs, libs, etc are extracted during install
-    # shellcheck disable=SC2046 
-    # This might return multiple parameters that we don't want quoted here
-    doSync "$apkPath/" "$baseDestFolder/" $(includeOnlyApk)
+      # Backup all APKs from path (can be multiple for split-apks!)
+      apkPath=$(dirname "$(sudo pm path "$packageName" | head -n1 | sed 's/package://')")
+      # Only sync APKs, libs, etc are extracted during install
+      # shellcheck disable=SC2046 
+      # This might return multiple parameters that we don't want quoted here
+      doSync "$apkPath/" "$baseDestFolder/" $(includeOnlyApk)
   fi
+}
+
+function backupTermux() {
+  local tmpFolder packageName="$1"
+  local baseDestFolder="$2/$1"
+  # Create in HOME, because usr/tmp is part of the backup
+  # For local backups we could get rid of the temp folder, but this would make the code more complicated
+  tmpFolder=$(mktemp -d "--tmpdir=$HOME")
+
+  backupFolder "/data/data/${packageName}/files/home" "${baseDestFolder}/data/files/home"
+  
+  trace "Writing termux.tgz to ${tmpFolder}"
+  trap "rm -rf ${tmpFolder}" 0
+  termux-backup "${tmpFolder}/termux.tgz"
+  doSync "${tmpFolder}/termux.tgz" "${baseDestFolder}/"
+
+  rm -rf "${tmpFolder}"
 }
 
 function backupFolder() {
@@ -60,15 +80,42 @@ function restoreApp() {
   fi
 
   if [[ "${APK}" != 'true' ]]; then
-    user=$(sudo stat -c '%U' "/data/data/$packageName")
-    group=$(sudo stat -c '%G' "/data/data/$packageName")
+    user=$(sudo stat -c '%U' "/data/data/${packageName}")
+    group=$(sudo stat -c '%G' "/data/data/${packageName}")
   
-    restoreFolder "${rootSrcFolder}" "data" "/data/data"
+    if [[ "${packageName}" != 'com.termux' ]]; then 
+      restoreFolder "${rootSrcFolder}" "data" "/data/data"
   
-    restoreFolder "${rootSrcFolder}" "sdcard" "/sdcard/Android/data"
+      restoreFolder "${rootSrcFolder}" "sdcard" "/sdcard/Android/data"
     
-    restoreFolder "${rootSrcFolder}" "sdcard-media" "/sdcard/Android/media"
+      restoreFolder "${rootSrcFolder}" "sdcard-media" "/sdcard/Android/media"
+    else
+      restoreTermux "$@"
+    fi
   fi
+}
+
+function restoreTermux() {
+  local tmpFolder rootSrcFolder="$1"
+
+  restoreFolder "${rootSrcFolder}" "data/files/home" "/data/data"
+
+  # Create in HOME, because usr/tmp is part of the restore. 
+  # This might not be strictly necessary here but, still might avoid trouble
+  # For restores from local source we could get rid of the temp folder, but this would make the code more complicated
+  tmpFolder=$(mktemp -d "--tmpdir=$HOME")
+  
+  trace "Fetching termux.tgz to ${tmpFolder}"
+  trap "rm -rf ${tmpFolder}" 0
+  doSync "${rootSrcFolder}/termux.tgz" "${tmpFolder}" '--include=*.tgz'
+  sudo chown -R "$(id -u):$(id -g)" "${tmpFolder}"
+  rm -rf " ${tmpFolder}"
+
+  trace "Restoring termux from ${tmpFolder}"
+  termux-restore "${tmpFolder}/termux.tgz"
+  
+  info "Restored termux. Pleas restart termux app."
+  info "Optional: if you used a shell other than bash, set it as default again, e.g. chsh zsh" 
 }
 
 function restoreFolder() {
@@ -78,17 +125,18 @@ function restoreFolder() {
   local packageName rootSrcFolder="$1"
   # e.g. com.nxp.taginfolite
   packageName=$(extractAppNameFromFolder "$rootSrcFolder")
-  # e.g. data
+  # e.g. data or data/foo/bar
   local relativeSrcFolder="$2"
+  # e.g. '' or 'foo/bar'
+  local subFolder=''
+  [[ "${relativeSrcFolder}" == */* ]] && subFolder="/${relativeSrcFolder#*/}"
   # e.g. /data/data
   local rootDestFolder="$3"
-  
   
   # e.g. /folder/com.nxp.taginfolite/data/
   local actualSrcFolder="${rootSrcFolder}/${relativeSrcFolder}"
   # e.g. /data/data/com.nxp.taginfolite
-  local actualDestFolder="${rootDestFolder}/${packageName}"
-
+  local actualDestFolder="${rootDestFolder}/${packageName}${subFolder}"
 
   if [[ "$(checkActualSourceFolderExists "${actualSrcFolder}")" == 'true' ]]; then
     trace "Restoring data to ${actualDestFolder}"
@@ -101,8 +149,7 @@ function restoreFolder() {
     fi
   else
     info "Backup does not contain folder '${actualSrcFolder}'. Skipping"
-  fi
-  
+  fi  
 }
 
 function extractAppNameFromFolder() {
@@ -160,6 +207,7 @@ function backupFolderSyncArgs() {
 }
 
 function includeOnlyApk() {
+  # TODO simplify using '--include=*.apk'?
   if [[ "${RCLONE}" == 'true' ]]; then
     # Avoid fuss with whitespaces inside the filter rules by importing them from a file 
     echo --filter-from="${LIB_DIR}/rclone-apk-filter.txt"
