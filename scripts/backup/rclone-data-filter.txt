@@ -4,6 +4,7 @@
 - /no_backup/**
 - /app_pccache/**
 - */temp/**
+- */tmp/**
 - */.thumb_cache/**
 - */.com.google.firebase.crashlytics/**
 - */.Fabric/**

@@ -151,7 +151,7 @@ function backupFolderSyncArgs() {
   else 
     # Add --delete here to remove files ins dest that have been deleted 
     # This should also migrate from data/data/${packageName} to data/data
-    echo --delete --exclude={/cache,/code_cache,/app_tmppccache,/no_backup,/app_pccache,*/temp,*/.thumb_cache,*/.com.google.firebase.crashlytics,*/.Fabric/}
+    echo --delete --exclude={/cache,/code_cache,/app_tmppccache,/no_backup,/app_pccache,*/temp,*/tmp,*/.thumb_cache,*/.com.google.firebase.crashlytics,*/.Fabric/}
   fi
 }
 
