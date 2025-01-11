@@ -135,8 +135,8 @@ for pkg in `dpkg --get-selections | awk '{print $1}' | egrep -v '(dpkg|apt|mysql
   Each can be combined with deduplication, encryption, etc.  
   Note: For local or SSH copy `rsync` has some advantages, e.g. keeping timestamps, user rights, symlinks, etc.
 * Getting started:
-  * Set up your remote with `sudo rclone config`. Why `sudo`? Because the backup is also executed with `sudo` to be able 
-    to access folders like `/data/data`, etc.
+  * Set up your remote with `sudo rclone config`, or copy an existing `rclone.config` to `.suroot/.config/rclone/` 
+   Why `sudo`? Because the backup is also executed with `sudo` to be able to access folders like `/data/data`, etc.
   * When backing up to the cloud I **recommend to add an encrypted remote and use it for backing up**
   * Backups can then be triggered like so, for example
     ```shell

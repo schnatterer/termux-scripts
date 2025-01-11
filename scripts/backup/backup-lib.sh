@@ -134,7 +134,11 @@ function checkActualSourceFolderExists() {
       actualSourceFolderExists=true
     fi
   elif [[ "${RCLONE}" == 'true' ]]; then
-    if rclone lsd "${actualSrcFolder}" > /dev/null 2>&1; then
+    # Sudo not necessary here, but
+    # rclone sync needs sudo
+    # And running both as sudo and unpriv user needs rclone.conf at two locations.
+    # So: Pragmatically using sudo here makes setup easier!  
+    if sudo rclone lsd "${actualSrcFolder}" > /dev/null 2>&1; then
       actualSourceFolderExists=true
     fi
   else
