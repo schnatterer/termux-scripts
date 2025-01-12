@@ -212,7 +212,7 @@ function doRsync() {
     setRemoteShellArgs
   fi
 
-  sudo rsync \
+  sudo rsync --delete \
     --human-readable --archive --times \
     "--rsh=${remoteShellArgs[*]}" \
     $(rsyncExternalArgs) \
