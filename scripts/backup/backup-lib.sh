@@ -64,7 +64,6 @@ function backupFolder() {
   fi
 }
 
-
 function restoreApp() {
   local packageName rootSrcFolder="$1"
   # For now just assume folder name = package name. Reading from apk would be more defensive... and effort.
@@ -207,7 +206,6 @@ function backupFolderSyncArgs() {
 }
 
 function includeOnlyApk() {
-  # TODO simplify using '--include=*.apk'?
   if [[ "${RCLONE}" == 'true' ]]; then
     # Avoid fuss with whitespaces inside the filter rules by importing them from a file 
     echo --filter-from="${LIB_DIR}/rclone-apk-filter.txt"
@@ -217,13 +215,11 @@ function includeOnlyApk() {
 }
 
 function doSync() {
-
   if [[ "${RCLONE}" == 'true' ]]; then
     doRclone "$@"
   else
     doRsync "$@"
   fi
-
 }
 
 function doRclone() {
@@ -234,7 +230,11 @@ function doRclone() {
   additionalArgs=${additionalArgs[@]:2}
   RSYNC_ARGS=${RSYNC_ARGS:-''}
 
-  sudo rclone sync \
+  # Try to preserve timestamps (--metadata, depends on cloud provider)
+  # For now do not preserve symlinks (--links, supposedly included in rclone --archive)
+  # https://forum.rclone.org/t/rsync-equivalent/37348/5
+  # Rclone seems to be unable to restore symlinks, resulting in permssion denied errors
+  sudo rclone sync --metadata \
     $(rsyncExternalArgs) \
     ${additionalArgs} \
     "${src}" "${dst}"

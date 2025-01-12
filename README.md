@@ -5,9 +5,22 @@ Automate everything on your android phone using [termux app](https://github.com/
 
 ## Changelog
 
-Note that starting with [commit 3586230](https://github.com/schnatterer/termux-scripts/commit/3586230) the folder 
-structure is simplified (see [#9](https://github.com/schnatterer/termux-scripts/issues/9)).
-Starting from there, backups made with older versions can no longer be restored. BUT:
+Breaking changes
+
+### [a96ae428](https://github.com/schnatterer/termux-scripts/commit/a96ae428)
+
+Simplification of backup and restore of termux app itself results in new folder structure of termux app.
+
+* `usr` folder will be backed up into `termux.tgz`
+* `home` folder will be backed up as is into `data/files/home`.
+* All other folders in `data` will be ignored.
+
+No need to change anything. If you have older backups, data will remain in the folder but ignored on backup.
+So, you could delete  all files under data, except `data/files/home` to preserve space. 
+
+### [3586230](https://github.com/schnatterer/termux-scripts/commit/3586230)
+Folder structure is simplified (see [#9](https://github.com/schnatterer/termux-scripts/issues/9)).
+Starting from here, backups made with older versions can no longer be restored. BUT:
  * Your backup will be migrated to the new structure automatically on the first backup
  * If you still need to restore an old backup, you can either
    * use an older version of this repo or
@@ -140,6 +153,12 @@ cd termux-scripts/backup
 ./restore-app.sh --rclone remote-encrypted:/my/folder/backup/com.termux --data 
 
 # chsh if necessary and restart app
+```
+
+When using rclone, file mode might not be restored properly.
+To avoid your private key being ignored, the following might be necessary
+```shell
+chmod -R 700 ~/.ssh
 ```
 
 ### Rclone
