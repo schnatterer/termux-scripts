@@ -7,7 +7,7 @@ Automate everything on your android phone using [termux app](https://github.com/
 
 Breaking changes
 
-### [a96ae428](https://github.com/schnatterer/termux-scripts/commit/a96ae428)
+### [c9fbf7e](https://github.com/schnatterer/termux-scripts/commit/c9fbf7e)
 
 Simplification of backup and restore of termux app itself results in new folder structure of termux app.
 
@@ -181,15 +181,6 @@ chmod -R 700 ~/.ssh
     That way you escape bash quoting hell another time.
     ```shell
     export RSYNC_ARGS=--filter-from=$HOME/.shortcuts/.rclone-app-excludes.txt 
-    ```
-  * I ended up excluding wide parts of my termux installation to save time and space
-    ```text
-    + /files/usr/var/lib/dpkg/status
-    - /files/usr/**
-    - /files/home/storage/**
-    - /*/.npm/**
-    - */node_modules/**
-    ```
   * The first backup to the cloud will take hours! Rough approximation: 100 apps/10GB (encrypted): 6 hours. Subsequent (differential) backups will be much faster. Rough approximation with only few changes: 100 apps/10GB: 20-60 minutes. 
   * A local rsync via SSH (unencrypted) takes about 2 hours initially, 15 minutes subsequently.
   * You can optimize your backup times by identifying and excluding large folders.
