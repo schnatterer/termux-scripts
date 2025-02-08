@@ -235,10 +235,13 @@ chmod -R 700 ~/.ssh
   If you want a list of apps that are in backup but not installed ont the phone, try the following in termux:
 
 ```shell
-REMOTE_APPS=$(mktemp)
-ssh user@backup-host ls /app/backup/folder | sort > $REMOTE_APPS
+LOCAL_APPS=$(mktemp)
+sudo ls /data/data | sort > $LOCAL_APPS
 
-sudo bash -c  "comm -13  <(ls /data/data | sort) $REMOTE_APPS"
+# rsync
+comm -13 $LOCAL_APPS <(rclone lsd remote-encrypted:/apps | awk '{print $5}' | sort)
+# rclone
+comm -13 $LOCAL_APPS <(ssh user@backup-host ls /app/backup/folder | sort)
 ```
 
 ## Default excludes
