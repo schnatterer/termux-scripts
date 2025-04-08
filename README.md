@@ -166,7 +166,9 @@ chmod -R 700 ~/.ssh
 * `--rclone` - use `rclone` instead of `rsync`
 * `rclone` supports [dozens of cloud providers](https://rclone.org/#providers), local, ssh, etc.
   Each can be combined with deduplication, encryption, etc.  
-  Note: For local or SSH copy `rsync` has some advantages, e.g. keeping timestamps, user rights, symlinks, etc.
+  Note:
+  * For local or SSH copy `rsync` has some advantages, e.g. keeping timestamps, user rights, symlinks, etc.
+  * Some cloud provider limit maximal path length, resulting in frequent `pathIsTooLong` Errors. To avoid these have a look at [File name encryption modes](https://rclone.org/crypt/#file-name-encryption-modes), for example `filename_encoding = base32768` or `suffix = none`.
 * Getting started:
   * Set up your remote with `sudo rclone config`, or copy an existing `rclone.config` to `.suroot/.config/rclone/` 
    Why `sudo`? Because the backup is also executed with `sudo` to be able to access folders like `/data/data`, etc.
