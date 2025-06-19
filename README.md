@@ -63,7 +63,7 @@ Starting from here, backups made with older versions can no longer be restored. 
 
 ```shell
 # Install packages
-pkg install -y git termux-api tsu rsync # or rclone 
+pkg install -y git termux-api sudo rsync # or rclone 
 
 # Fore remote backups via rsync, set up key. For rclone see bellow.
 ssh-keygen
