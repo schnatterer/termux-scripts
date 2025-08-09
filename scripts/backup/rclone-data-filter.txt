@@ -1,8 +1,9 @@
-- /cache/**
-- /code_cache/**
-- /app_tmppccache/**
-- /no_backup/**
-- /app_pccache/**
+- cache/**
+- .cache/**
+- code_cache/**
+- app_tmppccache/**
+- no_backup/**
+- app_pccache/**
 - */temp/**
 - */tmp/**
 - */.thumb_cache/**

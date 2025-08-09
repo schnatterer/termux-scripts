@@ -56,8 +56,8 @@ Starting from here, backups made with older versions can no longer be restored. 
 
 ### Preparation
 
-* For local backup only, the packages mentioned bellow are needed
-* For backing up to via SSH, yo need a key in your termux and the appropriate public key added 
+* For local backup only, the packages mentioned below are needed
+* For backing up to via SSH, you need a key in your termux and the appropriate public key added 
   to `authorized_keys` on the target device
 * For backing up to the cloud, you need to configure an `rclone` remote. See [rclone](#rclone)
 
@@ -125,6 +125,32 @@ export LOG_LEVEL='INFO' # Options: TRACE, INFO WARN, OFF. Default: INFO
 # Restores all apps from a folder (except termux, because this would cancel restore process! See bellow)
 # It the app does not work as expected after restore, consider restoring the keystore (see above)
 ./restore-all.sh user@host:/my/folder/backup/
+```
+
+### Migrate data from forks
+
+It's rather easy to migrate data for forked projects, e.g.
+* Chrome to Vanadium
+* Firefox to Fennec, IronFox, etc.
+
+* Install both apps in the same version
+* Stop both apps
+
+```bash
+./backup-app.sh us.spotco.fennec_dos .  --data
+mv us.spotco.fennec_dos  org.mozilla.fennec_fdroid
+./restore-app.sh org.mozilla.fennec_fdroid --data
+sudo rm -rf org.mozilla.fennec_fdroid
+```
+
+Note that data stored with android keystore is not migrated.  
+For example, you will lose your active sessions and secrets stored in the browser.  
+You will likely have to log in again with most apps.
+
+If your firefox (fork) keeps crashing after the migration, deleting the file called `lock` in your profile might help.
+
+```bash
+sudo rm /data/data/org.ironfoxoss.ironfox/files/mozilla/*.default/lock
 ```
 
 ### Restore termux
@@ -197,6 +223,8 @@ chmod -R 700 ~/.ssh
   * Common warnings:
     * `Failed to copy: invalidRequest: pathIsTooLong:` - well, the path is longer than your cloud provider supports.  
        Possible Solutions:
+      * OneDrive: `filename_encoding = base32768` and `suffix = none`.  
+        See [docs](https://rclone.org/crypt/#crypt-filename-encoding) [reddit](https://www.reddit.com/r/onedrive/comments/tt5tde/rclone_crypt_users_check_out_base32768/)
       * Exclude files (if not essential)
       * Try to use a path as short as possible. As close to your root path in the cloud as possible.  
         termux-scripts already optimized its internal folder structure ([#9](https://github.com/schnatterer/termux-scripts/issues/9)).
@@ -245,4 +273,5 @@ See [rclone-data-filter.txt](scripts/backup/rclone-data-filter.txt) for details.
 # Alternatives
 
 * [Neo-Backup](https://github.com/NeoApplications/Neo-Backup) Looks promising and much more convenient to use an app. But needs to create a local backup that then can be uploaded: Takes longer and requires twice the space :/
-* Similar scripts, but remote via adb (still require root, last commit 2013): ART https://xdaforums.com/t/tools-zips-scripts-android-backup-and-restore-tools-multiple-devices-platforms.4016617/, https://community.e.foundation/t/how-to-do-a-restore-back-up-from-seedvault/39603/2, remote backup
+* Similar scripts, but remote via adb (still require root, last commit 2013): ART
+* [AndDiSa/android_backup_project](https://github.com/AndDiSa/android_backup_project): [XDA](https://xdaforums.com/t/tools-zips-scripts-android-backup-and-restore-tools-multiple-devices-platforms.4016617/), [Forum discussion](https://community.e.foundation/t/how-to-do-a-restore-back-up-from-seedvault/39603/2) suggesting it as alternative to seedvault.
