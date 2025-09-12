@@ -6,15 +6,29 @@ BASEDIR=$(dirname $0)
 ABSOLUTE_BASEDIR="$(cd $BASEDIR && pwd)"
 SCRIPT_NAME=$(basename "$0")
 
+NOTIFICATION=termux-scripts-restoreAllUserApps
 # shellcheck source=./backup-lib.sh
 source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
+
+function handleFailure() {
+  exit_code=$?
+  content="Failed after restoring $(( index+1 ))/${nApps} apps in $(printSeconds).
+  At ${packageName}.
+  Tap to see log"
+  termux-notification --id "${NOTIFICATION}" \
+    --title "Failed restoring apps" \
+    --content "${content}" \
+    --action "xdg-open ${LOG_FILE}"
+  exit $exit_code
+}
+
 init "$@"
 
 function main() {
   nAppsRestored=0
   nAppsIgnored=0
-
-  trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id restoreAllApps --title "Failed restoring apps" --content "Failed after restoring $nAppsRestored / $nApps apps in $(printSeconds). Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
+  
+trap handleFailure ERR SIGINT SIGTERM
 
   if [[ "${rootSrcFolder}" == *:* ]] && [[ "${RCLONE}" != 'true' ]]; then
     # e.g. ssh user@host ls /a/b/c
@@ -22,7 +36,7 @@ function main() {
     packageNames=( $(sshFromEnv "$(removeDirFromSshExpression "${rootSrcFolder}")" "ls $(removeUserAndHostNameFromSshExpression "${rootSrcFolder}")" ) )
   elif [[ "${RCLONE}" == 'true' ]]; then
     # remove trailing slashes
-     packageNames=( $(rclone lsf "${rootSrcFolder}" | sed 's:/*$::') ) 
+    packageNames=( $(rclone lsf "${rootSrcFolder}" | sed 's:/*$::') )
   else
     packageNames=( $(ls "${rootSrcFolder}") )
   fi
@@ -50,8 +64,12 @@ function main() {
       if [[ "$start" == 'true' ]]; then 
         
         srcFolder="${rootSrcFolder}/${packageName}"
-        info "Restoring app $(( index+1 ))/${nApps}: ${packageName} from ${srcFolder}"
-        
+        local amount="$(( index+1 ))/${nApps}"
+        info "Restoring app ${amount}: ${packageName} from ${srcFolder}"
+        termux-notification --id "${NOTIFICATION}" --title "Restoring apps" \
+            --content "${amount}: ${packageName}" --priority low
+        # priority low avoids vibration/sound on each app
+
         restoreApp "${srcFolder}"
         nAppsRestored=$(( nAppsRestored + 1))
       else
@@ -67,8 +85,11 @@ function main() {
   done
 
   info "Finished restoring apps"
-  termux-notification --id restoreAllApps --title "Finished restoring apps" \
-    --content "$(echo -e "${nAppsRestored} / ${nApps} (skipped ${nAppsIgnored}) apps\nrestored successfully\nin $(printSeconds)")" \
+  content="${nAppsRestored} / ${nApps} (skipped ${nAppsIgnored}) apps
+  restored successfully in $(printSeconds).
+  Tap to see log"
+  termux-notification --id "${NOTIFICATION}" --title "Finished restoring apps" \
+    --content "${content}" \
     --action "xdg-open ${LOG_FILE}"
 }
 
