@@ -51,7 +51,7 @@ function main() {
   for index in "${!sortedPackageNames[@]}"; do
     packageName="${sortedPackageNames[index]}"
     
-    rawPackageName="${packageNames[index]}"
+    rawPackageName="${sortedPackageNames[index]}"
     packageName="${rawPackageName/package:/}"
     
     if [[ "${packageName}" == "${START_AT_PACKAGE}" ]]; then
