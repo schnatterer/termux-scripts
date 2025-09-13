@@ -6,16 +6,30 @@ BASEDIR=$(dirname $0)
 ABSOLUTE_BASEDIR="$(cd $BASEDIR && pwd)"
 SCRIPT_NAME=$(basename "$0")
 
+NOTIFICATION=termux-scripts-backupAllUserApps
 # shellcheck source=./backup-lib.sh
 source "${ABSOLUTE_BASEDIR}/backup-lib.sh"
-init "$@"
 
+function handleFailure() {
+  exit_code=$?
+  content="Failed after backing up $(( index+1 ))/${nUserApps} apps in $(printSeconds).
+  At ${packageName}.
+  Tap to see log"
+  termux-notification --id "${NOTIFICATION}" \
+    --title "Failed backing up apps" \
+    --content "${content}" \
+    --action "xdg-open ${LOG_FILE}"
+  exit $exit_code
+}
+
+init "$@"
+  
 function main() {
+
   nAppsBackedUp=0
   nAppsIgnored=0
 
-
-  trap '[[ $? > 0 ]] && (set +o nounset; termux-notification --id backupAllUserApps --title "Failed backing up apps" --content "Failed after backing up $nAppsBackedUp / $nUserApps apps in $(printSeconds). Tap to see log" --action "xdg-open ${LOG_FILE}")' EXIT
+  trap handleFailure ERR SIGINT SIGTERM
 
   # subshell turns line break to space -> array
   # array allows for using for loop, which does not rely on stdin
@@ -27,6 +41,7 @@ function main() {
 
   # Sort for deterministic order
   readarray -t sortedPackageNames < <(printf '%s\n' "${packageNames[@]}" | sort)
+  info "Backing the following packages in order of appearance: ${sortedPackageNames[*]}"
   
   start='true'
   if [[ -n "${START_AT_PACKAGE}" ]]; then
@@ -45,8 +60,12 @@ function main() {
     fi
     
     if ! isExcludedPackage "${packageName}" && [[ "${start}" == 'true' ]]; then
-      info "Backing up app $(( index+1 ))/${nUserApps}: ${packageName} to ${baseDestFolder}"
-      
+      local amount=$(( index+1 ))/${nUserApps}
+      info "Backing up app ${amount}: ${packageName} to ${baseDestFolder}"
+      termux-notification --id "${NOTIFICATION}" --title "Backing up apps" \
+                --content "${amount}: ${packageName}" --priority low
+            # priority low avoids vibration/sound on each app
+            
       backupApp "${packageName}" "${baseDestFolder}" 
       nAppsBackedUp=$(( nAppsBackedUp + 1 ))
     else
@@ -58,9 +77,13 @@ function main() {
   done
 
   info "Finished backing up apps"
-  termux-notification --id backupAllUserApps --title "Finished backing up apps" \
-    --content "$(echo -e "${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored}) user apps\nbacked up successfully\nin $(printSeconds)")" \
+  content="${nAppsBackedUp} / ${nUserApps} (skipped ${nAppsIgnored})
+  user apps backed up successfully in $(printSeconds).
+  Tap to see log"
+  termux-notification --id "${NOTIFICATION}" --title "Finished backing up apps" \
+    --content "${content}" \
     --action "xdg-open ${LOG_FILE}"
 }
+
 
 main "$@"
